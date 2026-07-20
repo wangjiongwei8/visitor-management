@@ -48,6 +48,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # 启动时自动同步表结构（drizzle-kit push）后再启动应用；即使建表失败也保证服务可启动
+    command: ["sh", "-c", "node ./node_modules/.bin/drizzle-kit push; node server.js"]
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/api/health"]
       interval: 30s

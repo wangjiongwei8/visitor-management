@@ -21,6 +21,8 @@
 
 ## 二、快速开始
 
+> **关于数据库初始化**：应用启动时（`instrumentation.ts`）会自动执行两件事——① 若环境内含 `drizzle-kit` 则自动将表结构同步到数据库；② 幂等创建默认账号（admin/security/employee/visitor）与系统设置。因此全新部署开箱即用，无需手动初始化。若自动建表未生效（如 standalone 镜像未含 drizzle-kit），启动前手动执行一次 `pnpm db:push` 即可。
+
 ### 方式一：Docker 一键启动（最省事，推荐先体验）
 
 1. **前置条件**：本机已安装 Docker / Docker Desktop（含 `docker compose`）。

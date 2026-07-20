@@ -45,6 +45,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# 复制完整 node_modules，使运行时可用 drizzle-kit 进行表结构自举（首次启动自动建表）
+COPY --from=builder /app/node_modules ./node_modules
+
 USER nextjs
 
 EXPOSE 4000
