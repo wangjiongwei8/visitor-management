@@ -1,0 +1,204 @@
+classDiagram
+    class SystemSettings {
+        +number id
+        +string key
+        +string value
+        +string description
+        +Date createdAt
+        +Date updatedAt
+    }
+
+    class Appointment {
+        +number id
+        +string visitorCode
+        +number visitorId
+        +string visitorName
+        +string visitorIdCard
+        +string visitorPhone
+        +number visitorCount
+        +string visitorType
+        +string visitorCategory
+        +string company
+        +string visitObject
+        +string visitPurpose
+        +Date appointmentDate
+        +string appointmentTime
+        +boolean needMeal
+        +string status
+        +string applicantId
+        +string applicantName
+        +string createdBy
+        +string deptApproverId
+        +string deptApproverName
+        +Date deptApprovalTime
+        +string deptApprovalNotes
+        +string notes
+        +Date createdAt
+        +Date updatedAt
+    }
+
+    class HostContact {
+        +number id
+        +string name
+        +string department
+        +string phone
+        +string email
+        +string position
+        +string createdBy
+        +Date createdAt
+        +Date updatedAt
+    }
+
+    class User {
+        +number id
+        +string username
+        +string password
+        +string name
+        +string role
+        +string status
+        +string employeeId
+        +string department
+        +string phone
+        +boolean mustChangePassword
+        +Date createdAt
+        +Date updatedAt
+    }
+
+    class Blacklist {
+        +number id
+        +string name
+        +string idCard
+        +string phone
+        +string reason
+        +string blacklistedBy
+        +boolean isPermanent
+        +Date expiryDate
+        +Date createdAt
+        +Date updatedAt
+    }
+
+    class VisitRecord {
+        +number id
+        +number visitorId
+        +string visitorName
+        +string visitorIdCard
+        +string visitorPhone
+        +number appointmentId
+        +number longTermVehicleId
+        +string visitorType
+        +string visitorCategory
+        +string visitObject
+        +string visitPurpose
+        +string passNumber
+        +string passColor
+        +Date checkInTime
+        +Date checkOutTime
+        +string visitStatus
+        +string riskLevel
+        +string notes
+        +Date createdAt
+        +Date updatedAt
+    }
+
+    class LongTermVehicle {
+        +number id
+        +string longTermCode
+        +string entryType
+        +string licensePlate
+        +string vehicleModel
+        +string driverName
+        +string driverPhone
+        +string company
+        +Date validFrom
+        +Date validTo
+        +string status
+        +boolean isOnSite
+        +string personName
+        +string personIdCard
+        +string personPhone
+        +Date createdAt
+        +Date updatedAt
+    }
+
+    class ScanAppointmentAPI {
+        +POST(request) createAppointment()
+        -checkBlacklist(idCard)
+        -getReviewEnabledSetting()
+        -generateVisitorCode(date)
+    }
+
+    class SettingsAPI {
+        +GET() getSettings()
+        +POST(request) updateSettings()
+        -upsertSetting(key, value, description)
+    }
+
+    class PublicSettingsAPI {
+        +GET() getReviewEnabledStatus()
+    }
+
+    class HostContactAPI {
+        +GET(request) searchContacts(query)
+        +POST(request) addContact()
+    }
+
+    class AppointmentApproveAPI {
+        +POST(request) approveAppointment()
+    }
+
+    class AppointmentRejectAPI {
+        +POST(request) rejectAppointment()
+    }
+
+    class PendingAppointmentsAPI {
+        +GET(request) getPendingList()
+    }
+
+    class VisitorSearchAPI {
+        +GET(request) searchVisitors(q, mode)
+    }
+
+    class HostContactSearch {
+        +string value
+        +function onChange
+        +function onSelect
+        -fetchContacts(query)
+        -renderDropdown()
+    }
+
+    class ScanAppointmentForm {
+        +boolean reviewEnabled
+        +function onSubmit
+        -handleSubmit(data)
+        -validateForm()
+    }
+
+    class PublicAppointmentPage {
+        +boolean reviewEnabled
+        -fetchReviewStatus()
+        -renderForm()
+    }
+
+    class MyAppointmentsPage {
+        +string activeTab
+        +Appointment[] pendingList
+        +Appointment[] myList
+        -fetchPendingList()
+        -handleApprove(id)
+        -handleReject(id, reason)
+    }
+
+    SystemSettings "1" --> "1" ScanAppointmentAPI : review_enabled 键控制
+    Appointment "N" --> "1" HostContact : visitObject 匹配 name
+    Appointment "1" --> "0..1" VisitRecord : 签到后关联
+    Appointment "N" --> "1" User : visitObject 对应 employeeId
+    Blacklist "N" --> "1" ScanAppointmentAPI : 提交时检查
+    LongTermVehicle "1" --> "0..N" VisitRecord : 签到后关联
+
+    ScanAppointmentForm --> HostContactSearch : 集成
+    ScanAppointmentForm --> ScanAppointmentAPI : 提交预约
+    PublicAppointmentPage --> PublicSettingsAPI : 获取审核状态
+    PublicAppointmentPage --> ScanAppointmentForm : 渲染
+    MyAppointmentsPage --> PendingAppointmentsAPI : 获取待审核
+    MyAppointmentsPage --> AppointmentApproveAPI : 审批通过
+    MyAppointmentsPage --> AppointmentRejectAPI : 审批拒绝

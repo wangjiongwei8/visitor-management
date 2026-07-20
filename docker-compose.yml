@@ -1,0 +1,59 @@
+# ============================================
+# 访客管理系统 V2 — 开源一键部署
+# 使用方式:
+#   1. cp .env.example .env.local
+#   2. 编辑 .env.local，设置 DATABASE_URL 与 TOKEN_SECRET
+#   3. docker compose up -d
+#   4. 访问 http://localhost:4000 完成初始化
+# ============================================
+
+services:
+  # 数据库服务
+  db:
+    image: postgres:16-alpine
+    container_name: visitor_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: visitor_management
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 应用服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME:-visitor-management}/visitor-app:${VERSION:-latest}
+    container_name: visitor_app
+    restart: always
+    environment:
+      # ⚠️ 生产环境务必通过 .env.local 覆盖 TOKEN_SECRET，切勿使用空默认值
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-password}@db:5432/visitor_management
+      TOKEN_SECRET: ${TOKEN_SECRET}
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:

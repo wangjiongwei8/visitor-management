@@ -1,0 +1,59 @@
+# ============================================
+# 访客管理系统 - 生产环境 Dockerfile
+# 构建目录：/opt（源码在 /opt/projects/）
+# 构建命令：cd /opt && docker build -t visitor-app:latest -f projects/Dockerfile.prod .
+# ============================================
+
+FROM node:20-alpine AS builder
+
+WORKDIR /build
+
+# npm 和 pnpm 都走国内镜像
+RUN npm config set registry https://registry.npmmirror.com \
+    && npm install -g pnpm
+
+COPY . .
+
+WORKDIR /build/projects
+
+# 删除 Windows 的 node_modules 和 .npmrc
+RUN rm -rf node_modules && rm -f .npmrc
+
+# pnpm 安装
+RUN pnpm config set registry https://registry.npmmirror.com \
+    && pnpm config set shamefully-hoist true \
+    && pnpm install --reporter=default --no-frozen-lockfile
+
+# 验证 next 可执行
+RUN npx next --version
+
+# 必须用 --webpack 构建（Turbopack 不打包 bcryptjs）
+RUN npx next build --webpack
+
+# ---- Runner ----
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# 复制 standalone 输出
+COPY --from=builder /build/projects/.next/standalone ./
+COPY --from=builder /build/projects/.next/static ./.next/static
+COPY --from=builder /build/projects/public ./public
+
+# standalone 模式不包含 bcryptjs，手动复制
+RUN mkdir -p /app/node_modules/bcryptjs
+COPY --from=builder /build/projects/node_modules/bcryptjs /app/node_modules/bcryptjs
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+ENV NODE_ENV="production"
+ENV TZ=Asia/Shanghai
+
+CMD ["node", "server.js"]

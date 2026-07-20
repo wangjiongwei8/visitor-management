@@ -1,0 +1,85 @@
+sequenceDiagram
+    actor Visitor as 访客
+    participant QR as 固定二维码
+    participant Page as /public/appointment
+    participant API as /api/scan-appointment
+    participant SettingsAPI as /api/settings/public
+    participant HC as /api/host-contacts
+    participant DB as PostgreSQL
+    actor Host as 被访人(员工)
+    participant ReviewAPI as /api/appointments/pending
+    participant AAPI as /api/appointments/approve
+    participant RAPI as /api/appointments/reject
+    actor Guard as 门卫
+    participant SearchAPI as /api/visitors/search
+
+    Note over Visitor,Guard: === 审核开启 (review_enabled=true) 的完整流程 ===
+
+    Visitor->>QR: 扫码
+    QR->>Page: 打开公开预约页（无需登录）
+    Page->>SettingsAPI: GET /api/settings/public
+    SettingsAPI->>DB: SELECT value FROM system_settings WHERE key='review_enabled'
+    DB-->>SettingsAPI: value = "true"
+    SettingsAPI-->>Page: { reviewEnabled: true }
+    Page-->>Visitor: 展示预约表单（标注"需审核"）
+
+    Visitor->>Page: 输入受访人姓名
+    Page->>HC: GET /api/host-contacts?query=张三
+    HC->>DB: SELECT * FROM host_contacts WHERE name ILIKE '%张三%'
+    DB-->>HC: [{name: "张三", department: "技术部", phone: "..."}]
+    HC-->>Page: 返回匹配列表
+    Page-->>Visitor: 显示匹配下拉选项
+
+    Visitor->>Page: 选择受访人或确认不匹配
+    Visitor->>Page: 填写完整表单，提交
+    Page->>API: POST /api/scan-appointment (无需认证)
+    API->>DB: SELECT value FROM system_settings WHERE key='review_enabled'
+    DB-->>API: value = "true"
+    API->>DB: 检查黑名单 (checkBlacklist)
+    API->>DB: INSERT INTO appointments (status='pending', created_by='visitor')
+    DB-->>API: 预约创建成功
+    API-->>Page: { success: true, message: "预约已提交，请等待受访人审批" }
+    Page-->>Visitor: 显示提交成功 + 预约编号
+
+    Note over Host: === 被访人审核流程 ===
+    Host->>ReviewAPI: GET /api/appointments/pending
+    ReviewAPI->>DB: SELECT * FROM appointments WHERE status='pending' AND visit_object='当前用户名'
+    DB-->>ReviewAPI: [{ 预约列表 }]
+    ReviewAPI-->>Host: 待审核预约列表
+
+    alt 审核通过
+        Host->>AAPI: POST /api/appointments/approve { appointmentId }
+        AAPI->>DB: 权限检查：visitObject == 当前用户名 或 role==admin
+        AAPI->>DB: UPDATE appointments SET status='scheduled', dept_approval_notes='审批通过'
+        DB-->>AAPI: 更新成功
+        AAPI-->>Host: { success: true }
+    else 审核拒绝
+        Host->>RAPI: POST /api/appointments/reject { appointmentId, rejectReason: "来访事由不明确" }
+        RAPI->>DB: 权限检查
+        RAPI->>DB: UPDATE appointments SET status='rejected', dept_approval_notes='来访事由不明确'
+        DB-->>RAPI: 更新成功
+        RAPI-->>Host: { success: true }
+    end
+
+    Note over Guard: === 门卫签到（status=scheduled 的预约可见）===
+    Guard->>SearchAPI: GET /api/visitors/search?q=13800138000&mode=checkin
+    SearchAPI->>DB: 搜索 appointments WHERE status IN ('scheduled','approved') AND 日期=今天
+    SearchAPI->>DB: 黑名单检查
+    DB-->>SearchAPI: 预约信息 + 车辆信息
+    SearchAPI-->>Guard: 搜索结果（脱敏后）
+    Guard->>Guard: 确认签到 → 发放通行牌
+
+    Note over Visitor,Guard: === 审核关闭 (review_enabled=false) 的简化流程 ===
+
+    Visitor->>Page: 扫码打开预约页
+    Page->>SettingsAPI: GET /api/settings/public
+    SettingsAPI-->>Page: { reviewEnabled: false }
+    Page-->>Visitor: 展示预约表单（标注"无需审核"）
+
+    Visitor->>Page: 填写表单，提交
+    Page->>API: POST /api/scan-appointment
+    API->>DB: review_enabled = false → status = 'scheduled'
+    API-->>Page: { success: true, message: "预约成功" }
+    Page-->>Visitor: 显示提交成功，可直接前往签到
+
+    Guard->>SearchAPI: 搜索 → 签到（无需等待审核）

@@ -1,0 +1,33 @@
+# ============================================
+# 访客管理系统 - 轻量生产 Dockerfile（本地预编译版）
+# 前提：本地已执行 npx next build --webpack
+# 构建目录：/opt
+# 构建命令：cd /opt && docker build -t visitor-app:latest -f projects/Dockerfile.prebuilt .
+# ============================================
+
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# 复制本地已编译的 standalone 产物
+COPY projects/.next/standalone ./
+COPY projects/.next/static ./.next/static
+COPY projects/public ./public
+
+# standalone 模式不包含 bcryptjs，手动复制
+RUN mkdir -p /app/node_modules/bcryptjs
+COPY projects/node_modules/bcryptjs /app/node_modules/bcryptjs
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+ENV NODE_ENV="production"
+ENV TZ=Asia/Shanghai
+
+CMD ["node", "server.js"]
