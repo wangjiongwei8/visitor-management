@@ -19,29 +19,70 @@
 
 ---
 
-## 二、本地开发起步
+## 二、快速开始
 
-```bash
-# 1. 安装依赖（必须用 pnpm）
-pnpm install
+### 方式一：Docker 一键启动（最省事，推荐先体验）
 
-# 2. 准备环境变量
-cp .env.example .env.local
-#   编辑 .env.local，至少设置 DATABASE_URL 与 TOKEN_SECRET
+1. **前置条件**：本机已安装 Docker / Docker Desktop（含 `docker compose`）。
+2. **准备环境变量**：
+   ```bash
+   cp .env.example .env.local
+   ```
+   打开 `.env.local`，把 `TOKEN_SECRET` 改成一段足够长的随机串（生成：`openssl rand -hex 32`）。`DATABASE_URL` 用默认值即可。
+3. **一条命令拉起数据库 + 应用**：
+   ```bash
+   docker compose up -d
+   ```
+   该命令会同时启动 PostgreSQL（`postgres:16-alpine`）与应用容器，应用每 30s 探测 `/api/health` 做健康检查。
+4. **浏览器访问** `http://localhost:4000`，按引导完成首次初始化、设置管理员密码。
+5. **用默认账号登录**（首次登录强制要求改密）：
 
-# 3. 启动开发服务器
-pnpm dev
-#   访问 http://localhost:3001
-```
+   | 角色 | 用户名 | 初始密码 |
+   |------|--------|----------|
+   | 管理员 | `admin` | `admin123` |
+   | 门卫 | `security` | `security123` |
+   | 员工 | `employee` | `employee123` |
+   | 访客 | `visitor` | `visitor123`（访客实际无需登录，扫码即可预约） |
 
-数据库可选用 Docker 一键拉起：
+6. **验证**：访问 `http://localhost:4000/api/health`，返回 HTTP 200 即表示应用与数据库连接正常。
 
-```bash
-docker compose up -d        # 同时起 PostgreSQL(postgres:16-alpine) 与应用
-```
+### 方式二：本地源码开发（改代码、提 PR 用）
 
-> ⚠️ **构建必须使用 webpack**：生产构建命令为 `pnpm build`（等价于 `next build --webpack`）。
-> 不要改用 Turbopack——`bcryptjs` 与 Turbopack 不兼容，会导致认证模块报错。
+1. **前置条件**：Node.js 20 LTS、pnpm 9+、本地 PostgreSQL 16（没有的话可用 Docker 只起数据库，见步骤 4）。
+2. **安装依赖**（**必须用 pnpm**，用 npm / yarn 会被仓库的 `only-allow` 强制拒绝）：
+   ```bash
+   pnpm install
+   ```
+3. **准备环境变量**：
+   ```bash
+   cp .env.example .env.local
+   ```
+   编辑 `.env.local` 至少设置：
+   - `DATABASE_URL`：指向你的 PostgreSQL，例如 `postgresql://postgres:password@localhost:5432/visitor_management`
+   - `TOKEN_SECRET`：长随机串（见方式一的生成命令）
+   - `NODE_ENV`：本地开发保持 `development`
+4. **（可选）只起数据库**：若本机没装 PostgreSQL，可只拉起 PG 容器：
+   ```bash
+   docker compose up -d db
+   ```
+5. **启动开发服务器**：
+   ```bash
+   pnpm dev
+   ```
+   访问 `http://localhost:3001`。
+6. **改完代码、提 PR 前**，本地先跑质量闸门：
+   ```bash
+   pnpm lint      # ESLint 检查
+   pnpm test      # Vitest 测试套件（27 项）
+   ```
+   两者全绿后再提交。
+
+### ⚠️ 关键注意事项
+
+- **构建必须用 webpack**：生产构建命令为 `pnpm build`（等价于 `next build --webpack`）。**不要用 Turbopack**——`bcryptjs` 与其不兼容，会导致认证模块报错。
+- **数据库表结构自动同步**：数据库名默认 `visitor_management`，表结构由 Drizzle 在首次运行时自动创建，无需手动建表。
+- **Node 版本**：开发 / CI / 镜像基准均为 Node 20 LTS；用 22 也可运行，但建议保持与 CI 一致。
+- 维护 `pnpm-lock.yaml`，提交依赖变更时确保它与 `package.json` 同步。
 
 ---
 
