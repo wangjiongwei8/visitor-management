@@ -1,8 +1,9 @@
 import type { NextConfig } from 'next';
+import path from 'node:path';
 
 const nextConfig: NextConfig = {
   output: 'standalone', // Docker 部署必需
-  outputFileTracingRoot: require('path').join(__dirname), // 防止多 lockfile 导致路径错误
+  outputFileTracingRoot: path.join(__dirname), // 防止多 lockfile 导致路径错误
   // Docker 部署必需：standalone 模式不会自动追踪 node_modules 中的服务端依赖
   outputFileTracingIncludes: {
     '/api/**/*': [

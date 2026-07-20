@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const showEnded = searchParams.get('showEnded'); // 是否显示已结束的记录
 
-    let conditions = [];
+    const conditions = [];
 
     // 员工只能看到自己的记录
     if (user.role === 'employee') {

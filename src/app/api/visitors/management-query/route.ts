@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     // ====== 长约车辆签到记录 ======
     // 查询所有长约签到记录（longTermVehicleId 不为空）
     let longTermVisitRecords: any[] = [];
-    let longTermVehicleMap = new Map<number, any>();
+    const longTermVehicleMap = new Map<number, any>();
     if (!isSecurity) {
       // 管理员：拉全量长约签到记录
       longTermVisitRecords = await db

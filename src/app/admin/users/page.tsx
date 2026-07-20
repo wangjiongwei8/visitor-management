@@ -287,7 +287,7 @@ employee,E003,员工周八,人事部`;
         const hasRoleColumn = roleColumnIndex !== -1;
         
         // 自动检测列顺序（根据标题行）
-        let colMapping: Record<string, number> = {};
+        const colMapping: Record<string, number> = {};
         if (hasHeader) {
           columns.forEach((col, idx) => {
             const colLower = col.toLowerCase();

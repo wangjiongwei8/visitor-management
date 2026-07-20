@@ -366,7 +366,7 @@ export default function VisitorCheckIn({ defaultMode = 'checkin' }: VisitorCheck
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
-              <span>点击"查询"按钮搜索访客信息</span>
+              <span>点击&quot;查询&quot;按钮搜索访客信息</span>
             </div>
           </CardContent>
         </Card>

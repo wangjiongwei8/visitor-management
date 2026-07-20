@@ -1,10 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { NextRequest } from 'next/server';
+
+interface MockAppointment {
+  id: number;
+  status: string;
+  visitObject: string;
+  [key: string]: unknown;
+}
+
+interface MockUser {
+  role: string;
+  name: string;
+  username: string;
+}
 
 const h = vi.hoisted(() => {
-  let appointment: any = { id: 1, status: 'pending', visitObject: '李四' };
-  let user: any = null;
+  let appointment: MockAppointment = { id: 1, status: 'pending', visitObject: '李四' };
+  let user: MockUser | null = null;
   let returnEmpty = false;
-  const updated: any[] = [];
+  const updated: Record<string, unknown>[] = [];
 
   const db = {
     select: vi.fn(() => ({
@@ -15,11 +29,11 @@ const h = vi.hoisted(() => {
       })),
     })),
     update: vi.fn(() => ({
-      set: vi.fn((vals: any) => {
+      set: vi.fn((vals: Record<string, unknown>) => {
         updated.push(vals);
         return {
           where: vi.fn(() => ({
-            returning: vi.fn(() => Promise.resolve([{ id: 1, ...appointment, ...vals }])),
+            returning: vi.fn(() => Promise.resolve([{ ...appointment, ...vals }])),
           })),
         };
       }),
@@ -32,8 +46,8 @@ const h = vi.hoisted(() => {
     db,
     updated,
     parseToken,
-    setAppointment: (a: any) => { appointment = a; },
-    setUser: (u: any) => { user = u; },
+    setAppointment: (a: MockAppointment) => { appointment = a; },
+    setUser: (u: MockUser | null) => { user = u; },
     setReturnEmpty: (v: boolean) => { returnEmpty = v; },
   };
 });
@@ -44,12 +58,12 @@ vi.mock('@/lib/auth', () => ({ parseToken: h.parseToken }));
 vi.mock('next/server', () => ({
   NextResponse: class {
     status: number;
-    body: any;
-    constructor(body: any, init?: any) {
+    body: unknown;
+    constructor(body: unknown, init?: { status?: number }) {
       this.body = body;
       this.status = init?.status ?? 200;
     }
-    static json(data: any, init?: any) {
+    static json(data: unknown, init?: { status?: number }) {
       return new this(data, init);
     }
     async json() {
@@ -61,14 +75,14 @@ vi.mock('next/server', () => ({
 
 const { POST } = await import('@/app/api/appointments/reject/route');
 
-function makeRequest(body: any, token?: string) {
+function makeRequest(body: unknown, token?: string) {
   return {
     json: async () => body,
     cookies: {
       get: (k: string) => (k === 'auth-token' ? { value: token ?? '' } : undefined),
     },
     headers: { get: () => null },
-  } as any;
+  } as unknown as NextRequest;
 }
 
 describe('POST /api/appointments/reject — 拒绝预约（Q6: 无需原因）', () => {
@@ -115,7 +129,7 @@ describe('POST /api/appointments/reject — 拒绝预约（Q6: 无需原因）',
     h.setUser({ role: 'admin', name: '管理员', username: 'admin' });
     h.setAppointment({ id: 1, status: 'pending', visitObject: '李四' });
     const res = await POST(makeRequest({ appointmentId: 1 }, 'tok')); // 无 rejectReason
-    const data = await res.json();
+    const data = (await res.json()) as { success: boolean };
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(h.updated[0].status).toBe('rejected');
@@ -126,7 +140,7 @@ describe('POST /api/appointments/reject — 拒绝预约（Q6: 无需原因）',
     h.setUser({ role: 'employee', name: '李四', username: 'lisi' });
     h.setAppointment({ id: 1, status: 'pending', visitObject: '李四' });
     const res = await POST(makeRequest({ appointmentId: 1, rejectReason: '来访事由不明确' }, 'tok'));
-    const data = await res.json();
+    await res.json();
     expect(res.status).toBe(200);
     expect(h.updated[0].status).toBe('rejected');
     expect(h.updated[0].deptApprovalNotes).toBe('来访事由不明确');

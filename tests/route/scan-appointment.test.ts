@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { NextRequest } from 'next/server';
 
 // ---- 共享的可控 mock 状态（vi.hoisted 保证工厂内可访问） ----
 const h = vi.hoisted(() => {
-  const inserted: any[] = [];
-  let settingRows: any[] = [{ value: 'true' }];
+  const inserted: Record<string, unknown>[] = [];
+  let settingRows: { value: string }[] = [{ value: 'true' }];
 
   const db = {
     select: vi.fn(() => ({
@@ -14,7 +15,7 @@ const h = vi.hoisted(() => {
       })),
     })),
     insert: vi.fn(() => ({
-      values: vi.fn((vals: any) => {
+      values: vi.fn((vals: Record<string, unknown>) => {
         inserted.push(vals);
         return { returning: vi.fn(() => Promise.resolve([{ id: 1, ...vals }])) };
       }),
@@ -22,7 +23,7 @@ const h = vi.hoisted(() => {
     execute: vi.fn(() => Promise.resolve({ rows: [{ last_seq: 1 }] })),
   };
 
-  return { inserted, db, setSettingRows: (rows: any[]) => { settingRows = rows; } };
+  return { inserted, db, setSettingRows: (rows: { value: string }[]) => { settingRows = rows; } };
 });
 
 // ---- mock 依赖模块 ----
@@ -43,12 +44,12 @@ vi.mock('@/lib/blacklist', () => ({ checkBlacklist: vi.fn(() => false) }));
 vi.mock('next/server', () => ({
   NextResponse: class {
     status: number;
-    body: any;
-    constructor(body: any, init?: any) {
+    body: unknown;
+    constructor(body: unknown, init?: { status?: number }) {
       this.body = body;
       this.status = init?.status ?? 200;
     }
-    static json(data: any, init?: any) {
+    static json(data: unknown, init?: { status?: number }) {
       return new this(data, init);
     }
     async json() {
@@ -62,14 +63,14 @@ vi.mock('next/server', () => ({
 const { POST } = await import('@/app/api/scan-appointment/route');
 import { resolveReviewStatus } from '@/lib/review-status';
 
-function makeRequest(body: any, ip = '10.0.0.1') {
+function makeRequest(body: unknown, ip = '10.0.0.1') {
   return {
     json: async () => body,
     headers: {
       get: (k: string) => (k === 'x-forwarded-for' ? ip : null),
     },
     cookies: { get: () => undefined },
-  } as any;
+  } as unknown as NextRequest;
 }
 
 const baseBody = {
@@ -91,12 +92,12 @@ describe('POST /api/scan-appointment — 审核开关分流', () => {
   it('审核开启(review_enabled=true) → status=pending, createdBy=visitor', async () => {
     h.setSettingRows([{ value: 'true' }]);
     const res = await POST(makeRequest(baseBody, '1.1.1.1'));
-    const data = await res.json();
+    const data = (await res.json()) as { success?: boolean; reviewEnabled?: boolean };
 
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
 
-    const appointment = h.inserted.find((v) => v.createdBy === 'visitor');
+    const appointment = h.inserted.find((v) => v.createdBy === 'visitor') as Record<string, unknown>;
     expect(appointment).toBeDefined();
     expect(appointment.status).toBe(resolveReviewStatus(true)); // 'pending'
     expect(appointment.status).toBe('pending');
@@ -107,10 +108,10 @@ describe('POST /api/scan-appointment — 审核开关分流', () => {
   it('审核关闭(review_enabled=false) → status=scheduled, createdBy=visitor', async () => {
     h.setSettingRows([{ value: 'false' }]);
     const res = await POST(makeRequest(baseBody, '2.2.2.2'));
-    const data = await res.json();
+    const data = (await res.json()) as { success?: boolean; reviewEnabled?: boolean };
 
     expect(res.status).toBe(200);
-    const appointment = h.inserted.find((v) => v.createdBy === 'visitor');
+    const appointment = h.inserted.find((v) => v.createdBy === 'visitor') as Record<string, unknown>;
     expect(appointment.status).toBe(resolveReviewStatus(false)); // 'scheduled'
     expect(appointment.status).toBe('scheduled');
     expect(appointment.createdBy).toBe('visitor');
@@ -120,10 +121,10 @@ describe('POST /api/scan-appointment — 审核开关分流', () => {
   it('设置记录缺失 → 默认开启审核(true) → status=pending', async () => {
     h.setSettingRows([]); // 模拟查不到记录
     const res = await POST(makeRequest(baseBody, '3.3.3.3'));
-    const data = await res.json();
+    const data = (await res.json()) as { success?: boolean; reviewEnabled?: boolean };
 
     expect(res.status).toBe(200);
-    const appointment = h.inserted.find((v) => v.createdBy === 'visitor');
+    const appointment = h.inserted.find((v) => v.createdBy === 'visitor') as Record<string, unknown>;
     expect(appointment.status).toBe('pending');
     expect(data.reviewEnabled).toBe(true);
   });

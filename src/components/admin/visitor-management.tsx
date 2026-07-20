@@ -572,7 +572,7 @@ export default function VisitorManagement({ hideSearch = false, hideActions = fa
                   <p>确定要删除访客 <strong>{visitorToDelete.name}</strong> 的记录吗？</p>
                   {visitorToDelete.status === 'checked_in' && (
                     <div className="mt-2 p-2 bg-red-50 dark:bg-red-950 rounded text-sm text-red-700 dark:text-red-300">
-                      ⚠️ 该访客状态为"已签到"，可能存在未签退的异常情况，删除后将无法恢复。
+                      ⚠️ 该访客状态为&quot;已签到&quot;，可能存在未签退的异常情况，删除后将无法恢复。
                     </div>
                   )}
                   <p className="text-sm text-muted-foreground">此操作不可撤销。</p>

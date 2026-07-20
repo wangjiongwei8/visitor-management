@@ -237,7 +237,7 @@ export async function POST(request: Request) {
 
   try {
     let createdCount = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     // 插入测试访客
     for (const visitorData of TEST_VISITORS) {

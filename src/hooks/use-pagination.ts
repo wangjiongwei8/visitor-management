@@ -30,6 +30,8 @@ export function usePagination<T>({
   useEffect(() => {
     if (data !== prevDataRef.current) {
       prevDataRef.current = data;
+      // 新数据集必须回到首页是有意行为；prevDataRef 守卫已避免无限循环，故在此关闭该规则
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentPage(1);
     }
   }, [data]);
