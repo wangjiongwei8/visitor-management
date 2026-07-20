@@ -119,6 +119,7 @@ docs/                          # PRD / 架构 / 设计总览
 - [设计总览](docs/总览.md) — 入口说明（功能说明、流程、决策）
 - [产品需求文档](docs/PRD-访客管理系统.md)
 - [架构设计](docs/ARCHITECTURE.md)
+- [贡献指南](CONTRIBUTING.md) — 如何提 Issue / PR、开发环境、代码规范
 
 ---
 
