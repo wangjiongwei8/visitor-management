@@ -1,17 +1,17 @@
-# 访客管理系统 V2 — 系统架构设计 + 任务分解
+# 访客管理系统（开源版）— 系统架构设计 + 任务分解
 
 > **Architect**: Bob  
 > **Date**: 2025-07-16  
-> **基于版本**: v1.1.4（内部生产版本）  
+> **基于版本**: v1.0.0  
 > **技术栈**: Next.js 16 (App Router) + TypeScript + Tailwind CSS + shadcn/ui + Drizzle ORM + PostgreSQL  
 
 ---
 
-## 1. v1 现状分析
+## 1. 现状分析
 
 ### 1.1 需要修改的核心模块
 
-| 模块 | 变更类型 | v1 现状 | v2 目标 |
+| 模块 | 变更类型 | 现有状态 | 目标 |
 |------|----------|---------|---------|
 | **公开预约页面** `/public/appointment` | 🔄 修改 | 显示"员工登录 / 访客预约"二选一 | 直接展示访客预约表单（移除员工登录入口） |
 | **扫码预约 API** `/api/scan-appointment` | 🔄 修改 | 提交后 status 固定为 `pending` | 根据审核开关决定：ON→`pending`，OFF→`scheduled` |
@@ -58,7 +58,7 @@
 
 **原则：最小变更，能不改的代码绝对不改。**
 
-v2 不是重写，是对 v1 的增量改造。核心改动只有三件事：
+本系统不是重写，而是在现有代码基础上的增量改造。核心改动只有三件事：
 
 1. **公开预约入口简化**：`/public/appointment` 去掉身份选择，直接展示访客表单
 2. **审核开关 + 自动通过逻辑**：利用现有 `system_settings` 表新增 `review_enabled` 键
@@ -71,7 +71,7 @@ v2 不是重写，是对 v1 的增量改造。核心改动只有三件事：
 | 审核开关存储 | `system_settings` 表，key=`review_enabled` | 复用现有基础设施，无需新增表 |
 | 被访人匹配 | 前端 autocomplete + 已有 `/api/host-contacts?query=` | API 已支持模糊搜索，无需后端改动 |
 | 二维码生成 | 保留 `qrcode` 包 + `/admin/qrcode` 页面 | 已有完整实现，URL 指向 `/public/appointment` |
-| 状态枚举 | 沿用 v1: `pending/scheduled/checked_in/checked_out/rejected/cancelled` | 无需新增状态 |
+| 状态枚举 | 沿用现有枚举: `pending/scheduled/checked_in/checked_out/rejected/cancelled` | 无需新增状态 |
 | 框架版本 | Next.js 16 + React 19 + Drizzle ORM 0.45 | 保持不变，不升级 |
 
 ### 2.3 审核开关的两种模式
@@ -89,9 +89,18 @@ v2 不是重写，是对 v1 的增量改造。核心改动只有三件事：
 └──────────────────────┴──────────────────────────────┘
 ```
 
+### 2.4 两种登记模式
+
+系统支持两种并行的登记模式，门卫签到流程完全共用：
+
+- **模式一 · 电脑端内部审核（预审单模式）**：员工在内部后台代为填写来访预约（预审单），复用已有 `/api/appointments` POST（需登录，`createdBy=employee`），提交后状态固定为 `scheduled`，**不进入待审核、不触发被访人审核**。访客 / 门卫到现场时，门卫在签到页直接搜索该预审单并签到发牌，**无需访客扫码**。
+- **模式二 · 二维码扫码登记模式**：访客现场扫描 `/public/appointment` 固定二维码自助填表，经 `/api/scan-appointment` 提交，按 `review_enabled` 进入 `pending`（被访人审核）或 `scheduled`（自动通过），见 5.1 / 5.2。
+
+两种模式写入同一 `appointments` 表，仅 `created_by` 与状态流转不同；门卫签到搜索对两者统一呈现。
+
 ---
 
-## 3. v2 文件变更清单
+## 3. 文件变更清单
 
 ### 3.1 新增文件 (NEW)
 
@@ -116,7 +125,7 @@ v2 不是重写，是对 v1 的增量改造。核心改动只有三件事：
 
 | 相对路径 | 说明 |
 |----------|------|
-| `src/lib/email.ts` | 邮件发送模块（v2 不需要） |
+| `src/lib/email.ts` | 邮件发送模块（不需要） |
 | `src/lib/scheduler.ts` | 定时任务（依赖邮件） |
 | `src/app/api/admin/email-config/route.ts` | 邮件配置 API |
 | `src/app/api/admin/email-config/test/route.ts` | 邮件测试 API |
@@ -332,6 +341,35 @@ sequenceDiagram
     Guard->>Guard: 搜索 → 签到 → 通行牌
 ```
 
+### 5.3 预审单全流程（模式一，员工代填）
+
+```mermaid
+sequenceDiagram
+    actor Employee as 员工(被访人)
+    participant Page as /my-appointments 或 /management
+    participant API as /api/appointments (POST)
+    actor Guard as 门卫
+    participant CheckIn as /security/check-in
+    participant SearchAPI as /api/visitors/search
+    participant DB as PostgreSQL
+
+    Employee->>Page: 登录后台，新建预审单
+    Employee->>Page: 填写访客信息（受访人=本人）
+    Employee->>Page: 提交预审单
+    Page->>API: POST /api/appointments (需登录)
+    API->>DB: INSERT INTO appointments (status='scheduled', created_by='employee')
+    DB-->>API: 预约创建成功
+    API-->>Page: { success: true }
+
+    Note over Guard: 访客到现场，无需扫码
+    Guard->>CheckIn: 搜索预审单（手机号/姓名/车牌/访客编号）
+    CheckIn->>SearchAPI: GET /api/visitors/search?q=...
+    SearchAPI->>DB: 搜索 appointments (status=scheduled, created_by='employee')
+    DB-->>SearchAPI: 预审单 + 黑名单检查
+    SearchAPI-->>CheckIn: 搜索结果（脱敏后）
+    CheckIn-->>Guard: 显示预审单 → 签到 → 发放通行牌
+```
+
 ---
 
 ## 6. 任务列表
@@ -484,7 +522,7 @@ sequenceDiagram
 ### 7.1 移除的依赖
 
 ```
-- nodemailer: 邮件发送（v2 不需要）
+- nodemailer: 邮件发送（不需要）
 - @types/nodemailer: nodemailer 类型定义
 - @aws-sdk/client-s3: S3 客户端（邮件附件存储）
 - @aws-sdk/lib-storage: S3 上传工具
@@ -492,7 +530,7 @@ sequenceDiagram
 
 ### 7.2 保留的依赖（无新增）
 
-v2 不需要引入任何新的 npm 包。所有功能使用已有依赖实现：
+本系统不需要引入任何新的 npm 包。所有功能使用已有依赖实现：
 - `qrcode` — 已有，二维码生成
 - `react-hook-form` + `zod` — 已有，表单验证
 - `drizzle-orm` + `drizzle-kit` — 已有，ORM
@@ -503,7 +541,7 @@ v2 不需要引入任何新的 npm 包。所有功能使用已有依赖实现：
 
 ## 8. 共享知识
 
-### 8.1 状态枚举（沿用 v1，不变）
+### 8.1 状态枚举（沿用现有枚举，不变）
 
 ```typescript
 // 预约状态
@@ -523,8 +561,8 @@ type PassColor = 'green' | 'yellow' | 'red';
 
 ```typescript
 const SYSTEM_SETTING_KEYS = {
-  REVIEW_ENABLED: 'review_enabled',  // v2 新增：审核开关
-  AUTO_APPROVE: 'auto_approve',      // v1 遗留：一键审批（废弃但保留）
+  REVIEW_ENABLED: 'review_enabled',  // 新增：审核开关
+  AUTO_APPROVE: 'auto_approve',      // 遗留：一键审批（废弃但保留）
 } as const;
 ```
 
@@ -550,7 +588,7 @@ const SYSTEM_SETTING_KEYS = {
 /admin/settings        → 系统设置（审核开关在此）
 ```
 
-### 8.5 数据脱敏规则（沿用 v1）
+### 8.5 数据脱敏规则（沿用现有规则）
 
 - 姓名：保留首字，其余 `*` 替换（如 "张三" → "张*"）
 - 手机号：前 3 + `****` + 后 4（如 "13800138000" → "138****8000"）
@@ -584,16 +622,16 @@ const SYSTEM_SETTING_KEYS = {
 | **Q-04** | "审核开关"关闭时，已经 pending 的旧预约是否需要批量转为 scheduled？ | ✅ **已确认：不自动转换，只影响新提交** |
 | **Q-05** | 门卫签到搜索时，是否需要排除 `rejected` 状态的预约？ | ✅ **已确认：排除 rejected** |
 | **Q-06** | 拒绝原因是否有字数限制？是否需要预设模板？ | ✅ **已确认：拒绝时不需要填写原因。** 直接拒绝，无需填写原因字段 |
-| **Q-07** | 公开预约页是否需要在提交前添加验证码（防止机器人）？ | ✅ **已确认：v2 暂不添加** |
+| **Q-07** | 公开预约页是否需要在提交前添加验证码（防止机器人）？ | ✅ **已确认：暂不添加** |
 
 ### 9.2 额外发现的待确认点
 
 | 编号 | 发现 | 建议 |
 |------|------|------|
-| **A-01** | v1 中 `src/lib/schema.ts` 和 `src/storage/database/shared/schema.ts` 存在大量重复表定义（visitors, appointments, blacklist, vehicles, visitRecords） | **建议：v2 清理重复。** 以 `storage/database/shared/schema.ts` 为权威来源，`lib/schema.ts` 中只保留独有的表（hostContacts, receipts, safetyEquipment, visitCards）。这是代码债务，但不影响功能，可在 T05 中处理 |
+| **A-01** | 现有代码中 `src/lib/schema.ts` 和 `src/storage/database/shared/schema.ts` 存在大量重复表定义（visitors, appointments, blacklist, vehicles, visitRecords） | **建议：清理重复。** 以 `storage/database/shared/schema.ts` 为权威来源，`lib/schema.ts` 中只保留独有的表（hostContacts, receipts, safetyEquipment, visitCards）。这是代码债务，但不影响功能，可在 T05 中处理 |
 | **A-02** | 通知相关表（notificationTasks 等）删除后，数据库中已有数据如何处理？ | **建议：保留数据库表不做 DROP。** 只移除代码引用。Drizzle schema 中删除表定义后不会影响已有数据库表，只是 ORM 不再访问它们 |
-| **A-03** | v1 的 `src/app/scan-appointment/` 和 `src/app/scan/` 是否需要删除？ | **建议：在 T05 中删除。** 确认这两个页面无人引用后安全删除 |
-| **A-04** | 现有 `auto_approve` 系统设置和 v2 的 `review_enabled` 语义相反（auto_approve=true ≈ review_enabled=false） | **建议：`review_enabled` 默认值为 `true`（开启审核），更安全。** 部署方安装后默认需审核，降低安全风险 |
+| **A-03** | 旧的 `src/app/scan-appointment/` 和 `src/app/scan/` 是否需要删除？ | **建议：在 T05 中删除。** 确认这两个页面无人引用后安全删除 |
+| **A-04** | 现有 `auto_approve` 系统设置和 `review_enabled` 语义相反（auto_approve=true ≈ review_enabled=false） | **建议：`review_enabled` 默认值为 `true`（开启审核），更安全。** 部署方安装后默认需审核，降低安全风险 |
 
 ---
 
@@ -614,5 +652,5 @@ graph TD
 
 ---
 
-> **文档版本**: v1.0  
+> **文档版本**: v1.0.0  
 > **审核状态**: **已确认** — 所有 Q 项决策已锁定，Q2=拒绝提交，Q6=不用原因，其余按建议执行

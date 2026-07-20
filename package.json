@@ -1,12 +1,13 @@
 {
-  "name": "projects",
-  "version": "1.1.4",
+  "name": "visitor-management",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "build": "next build --webpack",
     "dev": "npx next dev -p 3001 --webpack",
     "lint": "eslint",
     "start": "next start -p 4000",
+    "test": "vitest run",
     "ts-check": "tsc -p tsconfig.json"
   },
   "dependencies": {

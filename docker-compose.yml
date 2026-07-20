@@ -1,5 +1,5 @@
 # ============================================
-# 访客管理系统 V2 — 开源一键部署
+# 访客管理系统 — 开源一键部署
 # 使用方式:
 #   1. cp .env.example .env.local
 #   2. 编辑 .env.local，设置 DATABASE_URL 与 TOKEN_SECRET

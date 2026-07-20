@@ -234,8 +234,8 @@ export const visitRecords = pgTable('visit_records', {
 });
 
 // ==================== 访客证打印记录表 ====================
-// 【v2 移除】visitCards 表已废弃，访客证打印功能不再需要
-// 如需恢复，请从 v1.x 版本的代码中找回表定义
+// 【已移除】visitCards 表已废弃，访客证打印功能不再需要
+// 如需恢复，可重新实现该表定义
 
 // ==================== 安全装备管理表 ====================
 export const safetyEquipment = pgTable('safety_equipment', {
