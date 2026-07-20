@@ -1,5 +1,8 @@
 # 访客管理系统（开源版）
 
+[![CI](https://github.com/wangjiongwei8/visitor-management/actions/workflows/ci.yml/badge.svg)](https://github.com/wangjiongwei8/visitor-management/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 企业访客出入管理开源版。把大门这道**物理安全**关做实：访客**扫固定二维码自助预约**或被访人提前提交**预审单**，被访人（员工）**后台审核**（可开关），门卫**搜索签到发牌**——谁进了厂、何时进、是否经授权，全程留痕。
 
 > 独立开源项目（MIT 协议），完全自托管、零外部依赖，你可部署在自己的服务器上自由使用与二次开发。
