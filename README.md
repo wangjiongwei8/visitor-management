@@ -45,6 +45,46 @@
 
 ---
 
+## 📸 界面预览与核心流程
+
+> 界面截图**待补充**：计划把以下真实截图放入 `docs/screenshots/`，文件就位后把对应清单项改为 `![](docs/screenshots/xxx.png)` 即可：
+> - `dual-mode-entry.png` — 员工后台「预审单」入口 + 访客扫码自助预约页
+> - `host-review.png` — 被访人（员工）在「我的预约 / 待审核」中审批访客
+> - `guard-checkin.png` — 门卫搜索访客、黑名单拦截、按类型自动匹配通行牌颜色并签到
+
+下方两张流程图已可直接渲染，先把核心链路讲清楚：
+
+### 两种登记模式流程
+
+```mermaid
+flowchart TD
+    A[访客到访] --> B{登记方式}
+    B -->|员工预审单| C[员工后台填预约 → 自动 scheduled]
+    B -->|扫码自助| D[访客扫固定二维码填表 → pending]
+    C --> E{审核开关}
+    D --> E
+    E -->|开启| F[被访人本人后台审核]
+    E -->|关闭| G[自动通过]
+    F -->|通过| H[门卫搜索签到发牌]
+    G --> H
+    H --> I[离开时签退]
+```
+
+### 门卫签到拦截逻辑
+
+```mermaid
+flowchart TD
+    A[门卫搜索 手机/姓名/车牌/访客编号] --> B{命中黑名单?}
+    B -->|是| X[拦截，拒绝进入]
+    B -->|否| C{匹配预约或长约?}
+    C -->|否| Y[提示无有效预约]
+    C -->|是| D[按访客类型自动匹配通行牌颜色]
+    D --> E[签到成功]
+    E --> F[离开时签退]
+```
+
+---
+
 ## 🚀 快速开始
 
 ### 方式一：Docker 一键部署（推荐）
@@ -75,6 +115,19 @@ pnpm test                    # Vitest，27 项核心测试
 ```bash
 pnpm build                   # 即 next build --webpack（必须用 webpack，Turbopack 不兼容 bcryptjs）
 ```
+
+### 默认账号（首次启动自动创建）
+
+应用**首次启动**会通过 `src/lib/bootstrap.ts` 自动建表并幂等创建以下账号，**无需手动初始化**：
+
+| 用户名 | 密码 | 角色 |
+|--------|------|------|
+| `admin` | `admin123` | 系统管理员 |
+| `security` | `security123` | 门卫人员 |
+| `employee` | `employee123` | 员工代表 |
+| `visitor` | `visitor123` | 访客代表 |
+
+> ⚠️ 登录后请**立即修改默认密码**。生产环境务必在 `.env.local` 中设置强随机 `TOKEN_SECRET`（命令：`openssl rand -hex 32`），否则应用启动会直接 FATAL。
 
 ---
 
@@ -128,6 +181,14 @@ docs/                          # PRD / 架构 / 设计总览
 - 单元测试 / 路由测试：**27 / 27 通过**（Vitest）
 - 生产构建：`next build --webpack` **通过**
 - 源码静态审查：0 已知 Bug
+
+---
+
+## 💬 反馈与社区
+
+- **GitHub Discussions（官方反馈渠道）**：功能建议、部署踩坑、使用疑问都欢迎来 [Discussions](https://github.com/wangjiongwei8/visitor-management/discussions) 交流。
+- **Issue / PR**：Bug 报告与代码贡献请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- 项目完全自托管、MIT 协议，欢迎 Fork 二次开发并回来分享你的改进。
 
 ---
 
