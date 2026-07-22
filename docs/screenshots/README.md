@@ -19,3 +19,18 @@
 ```
 
 即可在 GitHub 上正常渲染。
+
+## 一键自动截图（推荐）
+
+仓库内置 Playwright 脚本 `scripts/screenshot.mjs`，可自动登录并截取上述 3 张图：
+
+```bash
+# 1) 先把应用跑起来（Docker 或本地 dev 任选）
+# 2) 安装浏览器引擎（首次）
+pnpm add -D playwright && npx playwright install chromium
+# 3) 运行（按实际端口调整 BASE_URL）
+BASE_URL=http://localhost:4000 node scripts/screenshot.mjs   # Docker
+# BASE_URL=http://localhost:3001 node scripts/screenshot.mjs # 本地 dev
+```
+
+脚本用默认账号 `employee/employee123`、`security/security123` 登录，公开扫码页 `/public/appointment` 无需登录。截图默认视口 1440×900。
