@@ -47,10 +47,11 @@
 
 ## 📸 界面预览与核心流程
 
-> 界面截图**待补充**：计划把以下真实截图放入 `docs/screenshots/`，文件就位后把对应清单项改为 `![](docs/screenshots/xxx.png)` 即可：
-> - `dual-mode-entry.png` — 员工后台「预审单」入口 + 访客扫码自助预约页
-> - `host-review.png` — 被访人（员工）在「我的预约 / 待审核」中审批访客
-> - `guard-checkin.png` — 门卫搜索访客、黑名单拦截、按类型自动匹配通行牌颜色并签到
+> 真实界面截图（已在本地启动系统后自动截取）：
+
+![双模式登记入口：员工后台「预审单」入口 + 访客扫码自助预约页](docs/screenshots/dual-mode-entry.png)
+![被访人后台审核：员工在「我的预约 / 待审核」中审批访客](docs/screenshots/host-review.png)
+![门卫签到发牌：搜索访客、黑名单拦截、按类型自动匹配通行牌颜色并签到](docs/screenshots/guard-checkin.png)
 
 下方两张流程图已可直接渲染，先把核心链路讲清楚：
 
