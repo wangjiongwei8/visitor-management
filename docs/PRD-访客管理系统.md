@@ -1,113 +1,115 @@
-# 访客管理系统（开源版）— 产品需求文档（PRD）
+> 🇺🇸 English | 🇨🇳 [中文](PRD-访客管理系统.zh-CN.md)
 
-## 项目信息
+# Visitor Management System (Open Source) — Product Requirements Document (PRD)
 
-| 项目 | 内容 |
+## Project Information
+
+| Item | Content |
 |------|------|
-| 语言 | 中文 |
-| 技术栈 | Next.js 16 (App Router) + TypeScript + Tailwind CSS + Drizzle ORM + PostgreSQL |
-| 项目代号 | visitor-management |
-| 文档版本 | v1.0.0 |
-| 创建日期 | 2025-07-10 |
-| 基于版本 | v1.0.0 |
-| 发布模式 | 开源（GitHub） |
+| Language | English |
+| Tech stack | Next.js 16 (App Router) + TypeScript + Tailwind CSS + Drizzle ORM + PostgreSQL |
+| Project code | visitor-management |
+| Doc version | v1.0.0 |
+| Created | 2025-07-10 |
+| Based on version | v1.0.0 |
+| Release mode | Open Source (GitHub) |
 
-### 原始需求复述
+### Original Requirement Recap
 
-作为独立开源项目发布。提供两种并行的登记模式：模式一（预审单）由员工在内部后台代为填写来访预约、提交即自动通过；模式二（扫码登记）由访客现场扫固定二维码自助填表、被访人本人审核（可开关）。核心变化包含将"管理员统一审批"改为"被访人本人审核"，同时完整保留系统全部已有功能。
+Released as an independent open-source project. Provides two parallel registration modes: Mode 1 (Pre-registration) where an employee fills the visit appointment on behalf of the visitor in the internal backend and it auto-approves on submission; Mode 2 (scan registration) where the visitor scans a fixed QR code on-site to self-register and the host reviews in person (toggleable). The core change moves "admin unified approval" to "host reviews in person", while fully retaining all existing system features.
 
 ---
 
-## 产品定义
+## Product Definition
 
-### 产品目标
+### Product Goals
 
-1. **访客自助化**：访客通过固定二维码自助完成预约，消除对员工在客户内网操作的依赖，支持出差/外勤场景
-2. **审核灵活化**：提供审核开关，关闭时自动通过、开启时由被访人本人审核，适应不同安全等级的管理需求
-3. **开源可复用**：作为独立开源项目发布，任何组织可自行部署使用，代码结构清晰、文档完善、易于二次开发
-4. **双模式登记**：同时支持员工代填预审单与访客扫码自助两种登记模式，覆盖不同网络与接待场景，门卫共用同一签到流程
+1. **Visitor self-service**: visitors self-register via a fixed QR code, removing the dependency on employees operating inside the customer's intranet, and supporting travel / field scenarios.
+2. **Flexible review**: a review toggle — off means auto-approve, on means the host reviews in person — adapting to different security levels.
+3. **Open source & reusable**: released as an independent open-source project that any organization can deploy and use, with clear code structure, complete docs, and easy secondary development.
+4. **Dual-mode registration**: supports both employee-filled pre-registration and visitor scan self-service, covering different network and reception scenarios, with a shared guard check-in flow.
 
-### 用户故事
+### User Stories
 
-| 编号 | 场景 |
+| ID | Scenario |
 |------|------|
-| US-01 | 作为访客，我希望扫一个固定二维码就能填写预约信息，无需下载 App 或登录系统，以便快速完成入厂预约 |
-| US-02 | 作为被访人（员工），我希望在系统后台看到"谁要来访我"的待审核列表，并可以一键通过或拒绝（附理由），以便我自主管控来访 |
-| US-03 | 作为门卫，我希望通过手机号/姓名/车牌号/访客编号快速找到预约记录并完成签到，系统自动拦截黑名单人员，以便高效安全地放行 |
-| US-04 | 作为管理员，我希望有一个审核开关来控制是否启用被访人审核流程，以便在低风险时段简化流程、高风险时段加强管控 |
-| US-05 | 作为访客，当我填写的受访人姓名与系统清单不匹配时，希望系统给我一个提示让我确认，以免填错导致预约无法被审核 |
-| US-06 | 作为员工（被访人），我希望在内部后台代为填写来访预约（预审单），提交即自动通过，以便访客到现场无需扫码、由门卫直接签到 |
+| US-01 | As a visitor, I want to scan a fixed QR code to fill in appointment info without downloading an app or logging in, so I can quickly complete a factory-entry appointment. |
+| US-02 | As a host (employee), I want to see a "who wants to visit me" pending-review list in the backend and one-click approve or reject (with reason), so I can control visits myself. |
+| US-03 | As a guard, I want to quickly find the appointment record by phone / name / plate / visitor code and complete check-in, with the system auto-blocking blacklisted people, so I can release them efficiently and safely. |
+| US-04 | As an admin, I want a review toggle to control whether the host review flow is enabled, so I can simplify the flow in low-risk periods and tighten control in high-risk periods. |
+| US-05 | As a visitor, when the host name I enter doesn't match the system list, I want a prompt to confirm, so I don't fill it wrong and get stuck in review. |
+| US-06 | As an employee (host), I want to fill the visit appointment on behalf of the visitor in the internal backend (pre-registration) that auto-approves on submission, so the visitor can arrive without scanning and be checked in directly by the guard. |
 
 ---
 
-## 技术规范
+## Technical Spec
 
-### 功能变更总览
+### Feature Change Overview
 
-| 模块 | 变更类型 | 说明 |
+| Module | Change type | Description |
 |------|----------|------|
-| 固定通用二维码 | 🆕 新增 | 一个固定二维码，所有访客扫码进入自助预约表单 |
-| 审核开关 | 🆕 新增 | 管理员可开启/关闭审核功能 |
-| 被访人审核 | 🔄 修改 | 审批人从「管理员」改为「被访人本人」 |
-| 被访人匹配 | 🆕 新增 | 访客填写受访人时与 host_contacts 清单匹配 |
-| 访客自助预约 | 🔄 修改 | 预约入口从员工端内网操作改为访客扫码自助 |
-| 预审单（员工代填） | 🆕 新增 | 员工在内部后台代为填写来访预约，提交即自动通过（scheduled），作为模式一与扫码模式并列 |
-| 黑名单管理 | ✅ 保留 | 签到时自动拦截，永久/临时黑名单 |
-| 长约车辆/人员管理 | ✅ 保留 | 含审批、签到、在厂状态、编号 |
-| 门卫签到签退 | ✅ 保留 | 搜索 → 签到 → 通行牌 → 签退 |
-| 用户管理 | ✅ 保留 | 增删改查、批量导入 |
-| 操作日志 | ✅ 保留 | 全操作记录 |
-| 访客看板 | ✅ 保留 | 统计卡片 + 图表 + 筛选 |
-| 受访人清单 | ✅ 保留 | host_contacts 管理 |
-| 密码策略 | ✅ 保留 | 密码复杂度管理 |
-| 预约管理 | ✅ 保留 | 查询/修改/导出 |
-| 访客编号自动生成 | ✅ 保留 | visitorCode 自动生成 |
-| 邮件通知 | ❌ 移除 | 不需要邮件通知 |
-| 短信通知 | ❌ 不需要 | 从未支持 |
-| 访客证打印 | ❌ 移除 | 暂不需要打印功能 |
+| Fixed universal QR code | 🆕 New | One fixed QR code; all visitors scan to enter the self-service form |
+| Review toggle | 🆕 New | Admin can enable/disable review |
+| Host review | 🔄 Modified | Approver changed from "admin" to "host in person" |
+| Host matching | 🆕 New | Visitor's host is matched against the host_contacts list when filling |
+| Visitor self-registration | 🔄 Modified | Entry moved from employee intranet op to visitor scan self-service |
+| Pre-registration (employee-filled) | 🆕 New | Employee fills visit appointment in internal backend; auto-approves on submit (scheduled); parallel to Mode 1 and scan mode |
+| Blacklist management | ✅ Kept | Auto-intercept at check-in; permanent / temporary blacklist |
+| Long-term vehicles/personnel | ✅ Kept | Approval, check-in, on-site status, codes |
+| Guard check-in/out | ✅ Kept | Search → check-in → badge → check-out |
+| User management | ✅ Kept | CRUD, bulk import |
+| Operation logs | ✅ Kept | Full operation records |
+| Visitor dashboard | ✅ Kept | Stat cards + charts + filters |
+| Host list | ✅ Kept | host_contacts management |
+| Password policy | ✅ Kept | Password complexity management |
+| Appointment management | ✅ Kept | Query / modify / export |
+| Auto visitor code | ✅ Kept | visitorCode auto-generated |
+| Email notification | ❌ Removed | Not needed |
+| SMS notification | ❌ Not needed | Never supported |
+| Visitor badge printing | ❌ Removed | Printing not needed for now |
 
-### 需求池
+### Requirement Pool
 
-#### P0 — 必须实现（核心流程，缺一则系统不可用）
+#### P0 — Must-have (core flow; system unusable without any)
 
-| 编号 | 需求 | 所属模块 | 变更类型 |
+| ID | Requirement | Module | Change type |
 |------|------|----------|-------|
-| P0-01 | 固定通用二维码：生成固定 URL 的二维码，张贴于门卫处/厂区，访客扫码进入自助预约表单，无需登录 | 预约入口 | 🆕 新增 |
-| P0-02 | 访客自助预约表单：移动端适配，支持选择访客类型（客户/供应商/应聘者/送货人员/政府人员/参观访客），填写访客信息、受访人、来访事由、预约时间、随行人员、车辆信息 | 访客预约 | 🔄 修改 |
-| P0-03 | 被访人匹配：访客填写受访人时，系统从 host_contacts 清单中实时匹配；匹配成功继续提交，匹配失败给出确认提示 | 访客预约 | 🆕 新增 |
-| P0-04 | 审核开关：管理员在系统设置中可开启/关闭审核功能，关闭时访客提交后自动为 scheduled，开启时进入 pending 待审核 | 系统设置 | 🆕 新增 |
-| P0-05 | 被访人审核列表：员工登录后看到"待审核"列表，仅显示受访人是自己的预约；支持「通过」和「拒绝（需填写拒绝原因）」操作 | 预约审核 | 🔄 修改 |
-| P0-06 | 门卫签到：通过手机号/姓名/车牌号/访客编号搜索预约记录，确认身份后签到，按访客类型自动匹配通行牌颜色，黑名单自动拦截 | 门卫签到 | ✅ 保留 |
-| P0-07 | 门卫签退：搜索在厂访客，确认签退，回收通行牌，记录签退时间 | 门卫签退 | ✅ 保留 |
-| P0-08 | 用户认证与 RBAC 权限控制：工号登录，角色（管理员/门卫/员工）区分权限，访客无需登录 | 用户认证 | ✅ 保留 |
-| P0-09 | 预审单创建：员工在后台（我的预约/预约管理）代为填写来访预约，受访人默认当前员工本人，提交即自动通过（scheduled），无需审核，作为模式一与扫码模式并列 | 预约入口 | 🆕 新增 |
+| P0-01 | Fixed universal QR code: generate a QR code with a fixed URL, posted at the guard post / factory; visitors scan to enter the self-service form, no login | Appointment entry | 🆕 New |
+| P0-02 | Visitor self-registration form: mobile-adapted, supports selecting visitor type (Customer/Supplier/Applicant/Delivery/Government/Tour Visitor), fills visitor info, host, visit purpose, appointment time, companions, vehicle info | Visitor appointment | 🔄 Modified |
+| P0-03 | Host matching: when the visitor fills the host, the system matches in real time against the host_contacts list; on success continue submit, on failure show a confirmation prompt | Visitor appointment | 🆕 New |
+| P0-04 | Review toggle: admin can enable/disable review in system settings; off → visitor submit auto `scheduled`; on → `pending` pending review | System settings | 🆕 New |
+| P0-05 | Host review list: after login the employee sees a "Pending Review" list showing only appointments where they are the host; supports "Approve" and "Reject (with reason required)" | Appointment review | 🔄 Modified |
+| P0-06 | Guard check-in: search appointments by phone / name / plate / visitor code, confirm identity then check in, auto-match badge color by visitor type, auto blacklist interception | Guard check-in | ✅ Kept |
+| P0-07 | Guard check-out: search on-site visitors, confirm check-out, collect badge, record check-out time | Guard check-out | ✅ Kept |
+| P0-08 | User auth & RBAC: login by employee ID, roles (Admin/Guard/Employee) with distinct permissions, visitors need no login | User auth | ✅ Kept |
+| P0-09 | Pre-registration creation: employee fills visit appointment in backend (My Appointments / Appointment Management) on behalf of visitor, host defaults to self, auto-approves on submit (scheduled), no review, parallel to Mode 1 and scan mode | Appointment entry | 🆕 New |
 
-#### P1 — 应该实现（重要但非阻塞）
+#### P1 — Should-have (important but non-blocking)
 
-| 编号 | 需求 | 所属模块 | 变更类型 |
+| ID | Requirement | Module | Change type |
 |------|------|----------|-------|
-| P1-01 | 黑名单管理：添加/删除黑名单（姓名、身份证号、手机号、原因），支持永久/临时（到期自动解除），签到时自动拦截 | 黑名单 | ✅ 保留 |
-| P1-02 | 长约车辆/人员管理：添加/编辑/删除/启用/停用，有效期管理，在厂状态查看，编号管理 | 长约车辆 | ✅ 保留 |
-| P1-03 | 用户管理：增删改查，批量导入（CSV 模板：角色,工号,姓名,部门），默认密码策略，重复工号检测 | 用户管理 | ✅ 保留 |
-| P1-04 | 操作日志：记录所有关键操作（操作人、类型、模块、描述、时间、IP），支持多维度筛选 | 操作日志 | ✅ 保留 |
-| P1-05 | 预约管理：查询（按时间/状态/访客类型等筛选）、查看详情、修改预约、导出（CSV/Excel） | 预约管理 | ✅ 保留 |
-| P1-06 | 访客编号自动生成：visitorCode 按规则自动生成，签到/查询时可使用 | 访客管理 | ✅ 保留 |
-| P1-07 | 受访人清单管理（host_contacts）：管理员维护受访人信息，供访客填表时匹配 | 系统设置 | ✅ 保留 |
-| P1-08 | 拒绝原因记录与展示：被访人拒绝时填写原因，预约详情中可查看 | 预约审核 | 🆕 新增 |
+| P1-01 | Blacklist management: add/remove blacklist (name, ID, phone, reason), permanent / temporary (auto-release on expiry), auto-intercept at check-in | Blacklist | ✅ Kept |
+| P1-02 | Long-term vehicles/personnel: add/edit/delete/enable/disable, validity management, on-site status view, code management | Long-term vehicles | ✅ Kept |
+| P1-03 | User management: CRUD, bulk import (CSV template: role, employee ID, name, department), default password policy, duplicate employee-ID detection | User management | ✅ Kept |
+| P1-04 | Operation logs: record all key operations (operator, type, module, description, time, IP), multi-dimensional filtering | Operation logs | ✅ Kept |
+| P1-05 | Appointment management: query (filter by time/status/visitor type, etc.), view details, modify, export (CSV/Excel) | Appointment management | ✅ Kept |
+| P1-06 | Auto visitor code: visitorCode generated by rule, usable at check-in/query | Visitor management | ✅ Kept |
+| P1-07 | Host list management (host_contacts): admin maintains host info for visitor form matching | System settings | ✅ Kept |
+| P1-08 | Reject-reason recording & display: host fills reason on reject, viewable in appointment details | Appointment review | 🆕 New |
 
-#### P2 — 可以实现（体验优化）
+#### P2 — Could-have (experience polish)
 
-| 编号 | 需求 | 所属模块 | 变更类型 |
+| ID | Requirement | Module | Change type |
 |------|------|----------|-------|
-| P2-01 | 访客看板：统计卡片（预约总数/签到/在厂等）+ 图表（来访目的分布/类型分布/趋势），支持时间范围和接待人筛选 | 访客看板 | ✅ 保留 |
-| P2-02 | 二维码管理页：下载二维码图片、打印海报（含使用说明）、复制预约链接 | 系统设置 | 🔄 适配 |
-| P2-03 | 密码策略管理：管理员配置密码复杂度要求、有效期等 | 系统设置 | ✅ 保留 |
-| P2-04 | 敏感数据脱敏展示：访客姓名、电话、身份证号在列表和详情中脱敏处理 | 访客管理 | ✅ 保留 |
-| P2-05 | 数据导出：预约记录、访客记录支持导出 | 数据管理 | ✅ 保留 |
+| P2-01 | Visitor dashboard: stat cards (total/check-in/on-site, etc.) + charts (purpose distribution / type distribution / trend), time-range and host filtering | Visitor dashboard | ✅ Kept |
+| P2-02 | QR code management page: download QR image, print poster (with instructions), copy appointment link | System settings | 🔄 Adapt |
+| P2-03 | Password policy management: admin configures password complexity, validity, etc. | System settings | ✅ Kept |
+| P2-04 | Sensitive data masking: visitor name, phone, ID masked in lists and details | Visitor management | ✅ Kept |
+| P2-05 | Data export: appointment and visitor records exportable | Data management | ✅ Kept |
 
-### UI 设计要点
+### UI Design Notes
 
-#### 1. 固定二维码 + 访客自助预约（核心新流程）
+#### 1. Fixed QR Code + Visitor Self-Registration (core new flow)
 
 ```
 ┌──────────────────────────────────────────┐
@@ -144,7 +146,7 @@
 └──────────────────────────────────┘
 ```
 
-#### 2. 被访人审核列表（员工端）
+#### 2. Host Review List (employee console)
 
 ```
 ┌──────────────────────────────────────────┐
@@ -160,7 +162,7 @@
 └──────────────────────────────────────────┘
 ```
 
-#### 3. 审核开关（管理员系统设置）
+#### 3. Review Toggle (admin system settings)
 
 ```
 ┌──────────────────────────────────────────┐
@@ -173,7 +175,7 @@
 └──────────────────────────────────────────┘
 ```
 
-#### 4. 门卫签到页面（保持原有布局）
+#### 4. Guard Check-in Page (keep original layout)
 
 ```
 ┌──────────────────────────────────────────┐
@@ -195,7 +197,7 @@
 └──────────────────────────────────────────┘
 ```
 
-#### 5. 预审单创建（员工端，模式一）
+#### 5. Pre-registration Creation (employee console, Mode 1)
 
 ```
 ┌──────────────────────────────────────────┐
@@ -215,7 +217,7 @@
 提交后状态: scheduled（自动通过，无需审核）
 ```
 
-### 预约状态流转
+### Appointment Status Flow
 
 ```
                   审核关闭
@@ -230,37 +232,37 @@
                             (门卫签到)     (门卫签退)
 ```
 
-> 模式一（预审单）由员工创建（`createdBy = employee`），提交即 `scheduled`，不经过 `pending` / 被访人审核；门卫到现场可直接签到。
+> Mode 1 (Pre-registration) is created by an employee (`createdBy = employee`); on submit it is `scheduled`, bypassing `pending` / host review; the guard can check in directly on arrival.
 
-### 待确认问题
+### Open Questions
 
-| 编号 | 问题 | 影响范围 |
+| ID | Question | Impact |
 |------|------|----------|
-| Q-01 | 访客编号（visitorCode）生成规则是否沿用现有规则？还是需要调整为更语义化的格式？ | P0-06 门卫签到 |
-| Q-02 | 随行人员是否也需要各自匹配通行牌颜色？还是仅主访客需要？ | P0-06 门卫签到 |
-| Q-03 | 被访人审核时是否需要填写"审核备注"（通过时可选、拒绝时必填），还是仅拒绝时填写？ | P0-05 被访人审核 |
-| Q-04 | 审核超时处理：如果被访人一直不审核，预约是否自动过期？过期时间多久？ | P0-05 被访人审核 |
-| Q-05 | 固定二维码的 URL 路径是否为 `/appointment`（沿用现有路径）？还是改为更短路径？ | P0-01 二维码 |
-| Q-06 | 员工端是否保留帮访客创建预约的功能？还是仅保留访客自助扫码？ | P0-02 / P0-09 | **已确认：保留（双模式）。** 员工端保留创建预审单能力，与访客扫码并列，两种模式共用门卫签到 |
-| Q-07 | 开源版本的 License 类型？是否需要 CONTRIBUTING.md / CODE_OF_CONDUCT？ | 项目发布 |
+| Q-01 | Should the visitor code (visitorCode) generation rule reuse the existing rule, or be adjusted to a more semantic format? | P0-06 Guard check-in |
+| Q-02 | Do companions each need a matched badge color, or only the primary visitor? | P0-06 Guard check-in |
+| Q-03 | During host review, is a "review note" needed (optional on approve, required on reject), or only on reject? | P0-05 Host review |
+| Q-04 | Review timeout: if the host never reviews, does the appointment auto-expire? For how long? | P0-05 Host review |
+| Q-05 | Is the fixed QR code URL `/appointment` (reuse existing) or a shorter path? | P0-01 QR code |
+| Q-06 | Does the employee console keep the ability to create appointments for visitors, or only visitor self-scan? | P0-02 / P0-09 | **Confirmed: keep (dual mode).** The employee console keeps pre-registration creation, parallel to visitor scan; both modes share guard check-in |
+| Q-07 | License type for the open-source version? Need CONTRIBUTING.md / CODE_OF_CONDUCT? | Project release |
 
 ---
 
-## 功能模块清单
+## Feature Module List
 
-以下功能模块在本系统中完整保留，仅做必要的适配（如技术栈升级、API 路径调整）：
+The following feature modules are fully retained in this system, with only necessary adaptations (e.g. tech-stack upgrade, API path adjustment):
 
-| 功能模块 | 状态 | 适配说明 |
+| Module | Status | Adaptation notes |
 |---------|---------|----------|
-| 用户认证（登录/权限 RBAC） | ✅ 保留 | 无需变更 |
-| 黑名单管理 | ✅ 保留 | 无需变更 |
-| 长约车辆/人员管理 | ✅ 保留 | 无需变更 |
-| 用户管理（批量导入） | ✅ 保留 | 无需变更 |
-| 操作日志 | ✅ 保留 | 增加审核相关日志类型 |
-| 访客看板 | ✅ 保留 | 图表数据源适配新状态字段 |
-| 受访人清单（host_contacts） | ✅ 保留 | 新增匹配查询 API |
-| 密码策略管理 | ✅ 保留 | 无需变更 |
-| 门卫签到签退 | ✅ 保留 | 通行牌颜色逻辑不变 |
-| 预约管理（查询/导出） | ✅ 保留 | 增加审核人字段筛选 |
-| 访客编号自动生成 | ✅ 保留 | 无需变更 |
-| 数据脱敏展示 | ✅ 保留 | 无需变更 |
+| User auth (login / RBAC) | ✅ Kept | No change |
+| Blacklist management | ✅ Kept | No change |
+| Long-term vehicles/personnel | ✅ Kept | No change |
+| User management (bulk import) | ✅ Kept | No change |
+| Operation logs | ✅ Kept | Added review-related log types |
+| Visitor dashboard | ✅ Kept | Chart data source adapted to new status fields |
+| Host list (host_contacts) | ✅ Kept | Added matching query API |
+| Password policy management | ✅ Kept | No change |
+| Guard check-in/out | ✅ Kept | Badge color logic unchanged |
+| Appointment management (query/export) | ✅ Kept | Added reviewer field filter |
+| Auto visitor code | ✅ Kept | No change |
+| Sensitive data masking | ✅ Kept | No change |

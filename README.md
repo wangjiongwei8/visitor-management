@@ -1,213 +1,215 @@
-# 访客管理系统（开源版）
+> 🇺🇸 English | 🇨🇳 [中文](README.zh-CN.md)
+
+# Visitor Management System (Open Source)
 
 [![CI](https://github.com/wangjiongwei8/visitor-management/actions/workflows/ci.yml/badge.svg)](https://github.com/wangjiongwei8/visitor-management/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-企业访客出入管理开源版。把大门这道**物理安全**关做实：访客**扫固定二维码自助预约**或被访人提前提交**预审单**，被访人（员工）**后台审核**（可开关），门卫**搜索签到发牌**——谁进了厂、何时进、是否经授权，全程留痕。
+An open-source enterprise visitor access management system. It makes the front gate — the physical security boundary — truly effective: visitors self-register by scanning a fixed QR code, or the host pre-submits a pre-registration form; the host (employee) reviews it in the backend (toggleable); the guard searches, checks in the visitor, and issues a badge — who entered, when, and whether authorized is fully logged.
 
-> 独立开源项目（MIT 协议），完全自托管、零外部依赖，你可部署在自己的服务器上自由使用与二次开发。
-
----
-
-## 🌟 为什么选它
-
-传统访客管理要么靠纸质登记本、要么靠前台电话反复确认——既低效，又让物理安全的第一道关形同虚设：谁进来了说不清、黑名单防不住、危险人员换个名字就能混进车间。
-
-本系统用「二维码 + 审核 + 门卫标准化操作」把这套流程做成可审计、可管控的闭环：
-
-- **物理安全做实**：谁进厂、何时进、是否经授权——全员留痕、操作日志可审计；黑名单实时拦截，危险人员进不来；受访人硬匹配杜绝冒名与「幽灵预约」
-- **门卫提效**：被访人线上审核，门卫不再满世界打电话问「让不让进」；扫码即登或预审单直达，免去手抄登记本；长约车辆 / 人员免重复登记
-- **访客零门槛**：扫固定二维码自助填表，无需注册登录，出差 / 外部人员也能用
-- **可控的审核**：被访人本人审核（开关可关，关即自动通过），谁来的、谁放的清清楚楚
-- **完全自托管**：部署在你自己的服务器，零外部依赖、无额外月费（数据不出企业）
-- **能力完整**：通行牌颜色按访客类型自动匹配、黑名单拦截、长约车辆 / 人员、用户与密码策略、操作日志、访客看板一应俱全
-- **部署简单**：Docker 一条命令起，或本地 `pnpm dev`，几分钟可用
-
-**适用场景**：工厂 / 园区 / 写字楼 / 政府单位 / 学校 / 医院等需要把访客出入管实、管透的组织。
-
-## ✨ 功能特性
-
-- **扫码自助预约**：固定通用二维码，访客手机扫码填表，无需登录
-- **审核开关**：管理员可开启/关闭审核；开启后由**被访人本人**审核，关闭则自动通过
-- **被访人匹配**：受访人必须从系统清单下拉选定，未匹配则硬阻止提交
-- **门卫签到签退**：手机号 / 姓名 / 车牌 / 访客编号搜索，黑名单自动拦截，按类型自动匹配通行牌颜色
-- **完整功能**：黑名单、长约车辆/人员管理、用户管理（批量导入）、操作日志、访客看板、受访人清单、密码策略、预约管理、访客编号自动生成
-- **零外部依赖**：无需邮件/短信服务即可运行
-
-## 🔀 两种登记模式
-
-系统支持两种并行的登记 / 审核模式，组织可任选其一或混用：
-
-- **模式一 · 电脑端内部审核（预审单模式）**：员工在内部后台代为填写来访预约（预审单），提交后自动通过（`scheduled`）；访客 / 门卫到现场时，门卫可直接在该预审单上签到发牌，**无需访客扫码**。适合访客不便自行扫码、或由接待方提前安排的场景。
-- **模式二 · 二维码扫码登记模式**：访客到现场扫描固定二维码自助填表，被访人（员工）后台审核（可开关）后门卫签到。适合公网开放、访客自助登记的场景。
-
-两种模式共用同一套门卫签到、黑名单、通行牌、长约与看板能力，预约数据互通。
+> An independent open-source project (MIT License), fully self-hosted with zero external dependencies. Deploy on your own server and use or fork it freely.
 
 ---
 
-## 📸 界面预览与核心流程
+## 🌟 Why Choose It
 
-> 真实界面截图（已在本地启动系统后自动截取）：
+Traditional visitor management relies on paper logbooks or repeated front-desk phone calls — both inefficient and leaving the first line of physical security ineffective: you can't tell who came in, can't block the blacklist, and dangerous individuals can slip into the workshop just by changing their name.
 
-![双模式登记入口：员工后台「预审单」入口 + 访客扫码自助预约页](docs/screenshots/dual-mode-entry.png)
-![被访人后台审核：员工在「我的预约 / 待审核」中审批访客](docs/screenshots/host-review.png)
-![门卫签到发牌：搜索访客、黑名单拦截、按类型自动匹配通行牌颜色并签到](docs/screenshots/guard-checkin.png)
+This system turns the "QR code + review + standardized guard operation" workflow into an auditable, controllable closed loop:
 
-下方两张流程图已可直接渲染，先把核心链路讲清楚：
+- **Real physical security**: who entered, when, and whether authorized — fully logged with auditable operation logs; real-time blacklist interception blocks dangerous individuals; hard host matching prevents impersonation and "ghost appointments"
+- **More efficient guards**: hosts review online, so guards no longer call around asking "should I let them in?"; scan-to-register or direct pre-registration eliminates hand-written logbooks; long-term vehicles/personnel skip repeated registration
+- **Zero barrier for visitors**: scan a fixed QR code and fill in the form — no registration or login required, usable by traveling/external personnel
+- **Controllable review**: the host reviews in person (toggle can be off, meaning auto-approve); who came and who let them in is crystal clear
+- **Fully self-hosted**: deployed on your own server, zero external dependencies, no extra monthly fees (data stays within the enterprise)
+- **Full-featured**: badge colors auto-matched by visitor type, blacklist interception, long-term vehicles/personnel, user and password policies, operation logs, and a visitor dashboard — all included
+- **Easy deployment**: one Docker command, or local `pnpm dev`, ready in minutes
 
-### 两种登记模式流程
+**Use cases**: factories / industrial parks / office buildings / government agencies / schools / hospitals — any organization that needs to manage visitor access strictly and transparently.
+
+## ✨ Features
+
+- **Scan-to-self-register**: a fixed universal QR code; visitors scan with their phone and fill the form — no login needed
+- **Review toggle**: admins can enable/disable review; when enabled, the **host (employee)** reviews; when disabled, auto-approve
+- **Host matching**: the host must be selected from a system dropdown; submission is hard-blocked if unmatched
+- **Guard check-in/out**: search by phone / name / plate / visitor code; auto blacklist interception; badge color auto-matched by type
+- **Complete feature set**: blacklist, long-term vehicles/personnel management, user management (bulk import), operation logs, visitor dashboard, host list, password policy, appointment management, auto-generated visitor codes
+- **Zero external dependencies**: runs without email/SMS services
+
+## 🔀 Two Registration Modes
+
+The system supports two parallel registration/review modes; an organization can use either or both:
+
+- **Mode 1 · Internal backend review (Pre-registration mode)**: an employee fills in the visit appointment on behalf of the visitor in the internal backend (a pre-registration form). On submission it auto-passes (`scheduled`); when the visitor/guard arrives on-site, the guard can check in and issue a badge directly from that pre-registration form, **without the visitor scanning a code**. Suitable when visitors cannot scan conveniently or when the receiving party arranges in advance.
+- **Mode 2 · QR-code scan registration**: the visitor scans a fixed QR code on-site and self-registers; the host (employee) reviews in the backend (toggleable), then the guard checks in. Suitable for public-facing, visitor self-service scenarios.
+
+Both modes share the same guard check-in, blacklist, badge, long-term, and dashboard capabilities, with appointment data interoperable.
+
+---
+
+## 📸 Screenshots & Core Flows
+
+> Real interface screenshots (auto-captured after starting the system locally):
+
+![Dual-mode registration entry: employee backend "Pre-registration" entry + visitor scan-to-self-register page](docs/screenshots/dual-mode-entry.png)
+![Host backend review: employee approves visitors in "My Appointments / Pending Review"](docs/screenshots/host-review.png)
+![Guard check-in and badge issuance: search visitor, blacklist interception, auto-match badge color by type, and check in](docs/screenshots/guard-checkin.png)
+
+The two flowcharts below render directly and clarify the core chain:
+
+### Two Registration Mode Flows
 
 ```mermaid
 flowchart TD
-    A[访客到访] --> B{登记方式}
-    B -->|员工预审单| C[员工后台填预约 → 自动 scheduled]
-    B -->|扫码自助| D[访客扫固定二维码填表 → pending]
-    C --> E{审核开关}
+    A[Visitor arrives] --> B{Registration method}
+    B -->|Employee pre-registration| C[Employee fills appointment in backend → auto scheduled]
+    B -->|Scan to self-register| D[Visitor scans fixed QR code and fills form → pending]
+    C --> E{Review toggle}
     D --> E
-    E -->|开启| F[被访人本人后台审核]
-    E -->|关闭| G[自动通过]
-    F -->|通过| H[门卫搜索签到发牌]
+    E -->|Enabled| F[Host reviews in backend]
+    E -->|Disabled| G[Auto-approve]
+    F -->|Approved| H[Guard searches, checks in, issues badge]
     G --> H
-    H --> I[离开时签退]
+    H --> I[Check out on departure]
 ```
 
-### 门卫签到拦截逻辑
+### Guard Check-in Interception Logic
 
 ```mermaid
 flowchart TD
-    A[门卫搜索 手机/姓名/车牌/访客编号] --> B{命中黑名单?}
-    B -->|是| X[拦截，拒绝进入]
-    B -->|否| C{匹配预约或长约?}
-    C -->|否| Y[提示无有效预约]
-    C -->|是| D[按访客类型自动匹配通行牌颜色]
-    D --> E[签到成功]
-    E --> F[离开时签退]
+    A[Guard searches phone/name/plate/visitor code] --> B{Hits blacklist?}
+    B -->|Yes| X[Intercept, deny entry]
+    B -->|No| C{Matches appointment or long-term?}
+    C -->|No| Y[Prompt: no valid appointment]
+    C -->|Yes| D[Auto-match badge color by visitor type]
+    D --> E[Check-in success]
+    E --> F[Check out on departure]
 ```
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 方式一：Docker 一键部署（推荐）
+### Option 1: Docker One-Command Deploy (Recommended)
 
 ```bash
 cp .env.example .env
-# 编辑 .env（注意：Docker Compose 只读取 .env，不读 .env.local），设置 DATABASE_URL 与 TOKEN_SECRET（TOKEN_SECRET 务必改为长随机串）
+# Edit .env (note: Docker Compose reads only .env, NOT .env.local), set DATABASE_URL and TOKEN_SECRET (TOKEN_SECRET MUST be changed to a long random string)
 docker compose up -d
-# 访问 http://localhost:4000
+# Visit http://localhost:4000
 ```
 
-### 方式二：本地开发
+### Option 2: Local Development
 
 ```bash
 pnpm install
-cp .env.example .env.local   # 填写数据库连接与 TOKEN_SECRET
+cp .env.example .env.local   # Fill in database connection and TOKEN_SECRET
 pnpm dev                     # http://localhost:3001
 ```
 
-> ### ⚠️ 环境变量文件：`.env` 与 `.env.local` 的区别（很重要，搞错会跑不起来）
+> ### ⚠️ Environment files: the difference between `.env` and `.env.local` (important — getting it wrong will break startup)
 >
-> 本项目两套运行方式读取的环境变量文件**不同**，必须对应正确，否则会出现「连不上数据库 / 缺少 TOKEN_SECRET 直接 FATAL」等问题：
+> The two runtime modes read **different** environment files. They must be matched correctly, otherwise you'll hit issues like "can't connect to database / missing TOKEN_SECRET → FATAL on startup":
 >
-> | 运行方式 | 实际读取的文件 | 正确做法 |
+> | Runtime mode | File actually read | Correct approach |
 > |----------|---------------|----------|
-> | **Docker 部署**（`docker compose up`） | 仅仓库根目录的 **`.env`**（Compose 的 `${VAR}` 变量插值**只认 `.env`，不读 `.env.local`**） | `cp .env.example .env` 后编辑 `.env` |
-> | **本地开发**（`pnpm dev` / `next dev`） | **`.env.local`**（Next.js 自动加载；`.env` 也会被读，但 `.env.local` 优先级更高） | `cp .env.example .env.local` 后编辑 `.env.local` |
+> | **Docker deploy** (`docker compose up`) | only the root `.env` (Compose's `${VAR}` interpolation **only recognizes `.env`, not `.env.local`**) | `cp .env.example .env` then edit `.env` |
+> | **Local dev** (`pnpm dev` / `next dev`) | **`.env.local`** (auto-loaded by Next.js; `.env` is also read but `.env.local` takes precedence) | `cp .env.example .env.local` then edit `.env.local` |
 >
-> **最常见的坑**：照旧文档把变量复制到 `.env.local` 再执行 `docker compose up`，Compose 读不到 `.env.local`，`DATABASE_URL` / `TOKEN_SECRET` 缺失或为空 → 应用起不来或连不上库。
+> **Most common pitfall**: copying variables into `.env.local` as the old docs said, then running `docker compose up` — Compose can't read `.env.local`, so `DATABASE_URL` / `TOKEN_SECRET` are missing or empty → the app won't start or can't reach the database.
 >
-> **一句话记忆**：**Docker 用 `.env`，本地 dev 才用 `.env.local`**。两个文件互不冲突，也可同时存在（本地 dev 时 Next.js 优先用 `.env.local`）。
+> **One-line rule**: **Docker uses `.env`, local dev uses `.env.local`**. The two files don't conflict and can coexist (during local dev, Next.js prefers `.env.local`).
 >
-> 所有可配置项见 `.env.example`；密钥文件已被 `.gitignore` 忽略，不会进入仓库。
+> All configurable items are in `.env.example`; secret files are ignored by `.gitignore` and never enter the repo.
 
-### 运行测试
+### Run Tests
 
 ```bash
-pnpm test                    # Vitest，27 项核心测试
+pnpm test                    # Vitest, 27 core tests
 ```
 
-### 生产构建
+### Production Build
 
 ```bash
-pnpm build                   # 即 next build --webpack（必须用 webpack，Turbopack 不兼容 bcryptjs）
+pnpm build                   # i.e., next build --webpack (must use webpack; Turbopack is incompatible with bcryptjs)
 ```
 
-### 默认账号（首次启动自动创建）
+### Default Accounts (auto-created on first startup)
 
-应用**首次启动**会通过 `src/lib/bootstrap.ts` 自动建表并幂等创建以下账号，**无需手动初始化**：
+On **first startup**, the app uses `src/lib/bootstrap.ts` to auto-create tables and idempotently create the following accounts — **no manual initialization needed**:
 
-| 用户名 | 密码 | 角色 |
+| Username | Password | Role |
 |--------|------|------|
-| `admin` | `admin123` | 系统管理员 |
-| `security` | `security123` | 门卫人员 |
-| `employee` | `employee123` | 员工代表 |
-| `visitor` | `visitor123` | 访客代表 |
+| `admin` | `admin123` | System Administrator |
+| `security` | `security123` | Guard |
+| `employee` | `employee123` | Employee (host representative) |
+| `visitor` | `visitor123` | Visitor (representative) |
 
-> ⚠️ 登录后请**立即修改默认密码**。生产环境务必在你实际使用的环境变量文件（Docker 用 `.env`，本地 dev 用 `.env.local`）中设置强随机 `TOKEN_SECRET`（命令：`openssl rand -hex 32`），否则应用启动会直接 FATAL。
+> ⚠️ **Change the default passwords immediately after logging in.** In production, you MUST set a strong random `TOKEN_SECRET` in the environment file you actually use (`.env` for Docker, `.env.local` for local dev) — command: `openssl rand -hex 32` — otherwise the app will FATAL on startup.
 
 ---
 
-## ⚙️ 配置说明
+## ⚙️ Configuration
 
-所有可配置项见 `.env.example`：
+All configurable items are in `.env.example`:
 
-| 变量 | 说明 | 必填 |
+| Variable | Description | Required |
 |------|------|------|
-| `DATABASE_URL` | PostgreSQL 连接串 | ✅ |
-| `TOKEN_SECRET` | Token 签名密钥（生产必须覆盖默认值） | ✅ |
+| `DATABASE_URL` | PostgreSQL connection string | ✅ |
+| `TOKEN_SECRET` | Token signing secret (must override default in production) | ✅ |
 | `NODE_ENV` | `development` / `production` | ✅ |
-| `DB_PASSWORD` | 仅 Docker 部署时用于初始化数据库 | Docker 用 |
+| `DB_PASSWORD` | Used only for DB initialization in Docker deploy | Docker only |
 
-> 🔒 源码中**不含**任何客户专属密钥。密钥仅存在于本地 `.env.local` / `.env.production`，已被 `.gitignore` 忽略。
+> 🔒 The source code contains **no** customer-specific secrets. Secrets exist only in local `.env.local` / `.env.production`, ignored by `.gitignore`.
 
 ---
 
-## 📁 目录结构（节选）
+## 📁 Directory Structure (excerpt)
 
 ```
 src/
 ├── app/
-│   ├── api/settings/public/   # 免认证：返回审核开关状态
-│   ├── public/appointment/    # 访客扫码自助预约页
-│   ├── my-appointments/       # 员工端（含「待审核」Tab）
-│   ├── admin/                 # 管理端（审核开关、用户、黑名单、长约…）
-│   └── security/              # 门卫端
-├── components/visitor/        # host-contact-search 等
-├── lib/review-status.ts       # 审核状态纯函数
-└── storage/database/shared/schema.ts  # Drizzle 表定义
-tests/                         # Vitest 测试套件
-docs/                          # PRD / 架构 / 设计总览
+│   ├── api/settings/public/   # No auth: returns review toggle status
+│   ├── public/appointment/    # Visitor scan-to-self-register page
+│   ├── my-appointments/       # Employee console (with "Pending Review" tab)
+│   ├── admin/                 # Admin console (review toggle, users, blacklist, long-term…)
+│   └── security/              # Guard console
+├── components/visitor/        # host-contact-search, etc.
+├── lib/review-status.ts       # Review status pure functions
+└── storage/database/shared/schema.ts  # Drizzle table definitions
+tests/                         # Vitest test suite
+docs/                          # PRD / Architecture / overview docs
 ```
 
 ---
 
-## 📚 文档
+## 📚 Documentation
 
-- [部署说明](docs/部署说明.md) — Docker / 本地部署、环境变量、初始化、备份升级
-- [操作说明书](docs/操作说明书.md) — 访客 / 被访人 / 门卫 / 管理员分角色操作指引
-- [设计总览](docs/总览.md) — 入口说明（功能说明、流程、决策）
-- [产品需求文档](docs/PRD-访客管理系统.md)
-- [架构设计](docs/ARCHITECTURE.md)
-- [贡献指南](CONTRIBUTING.md) — 如何提 Issue / PR、开发环境、代码规范
-
----
-
-## 🧪 质量
-
-- 单元测试 / 路由测试：**27 / 27 通过**（Vitest）
-- 生产构建：`next build --webpack` **通过**
-- 源码静态审查：0 已知 Bug
+- [Deployment Guide](docs/部署说明.md) — Docker / local deploy, env vars, initialization, backup & upgrade
+- [Operations Manual](docs/操作说明书.md) — role-based guidance for visitor / host / guard / admin
+- [Design Overview](docs/总览.md) — entry doc (features, flows, decisions)
+- [Product Requirements Document](docs/PRD-访客管理系统.md)
+- [Architecture Design](docs/ARCHITECTURE.md)
+- [Contributing Guide](CONTRIBUTING.md) — how to file Issues / PRs, dev environment, code style
 
 ---
 
-## 💬 反馈与社区
+## 🧪 Quality
 
-- **GitHub Discussions（官方反馈渠道）**：功能建议、部署踩坑、使用疑问都欢迎来 [Discussions](https://github.com/wangjiongwei8/visitor-management/discussions) 交流。
-- **Issue / PR**：Bug 报告与代码贡献请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
-- 项目完全自托管、MIT 协议，欢迎 Fork 二次开发并回来分享你的改进。
+- Unit / route tests: **27 / 27 passing** (Vitest)
+- Production build: `next build --webpack` **passes**
+- Source static review: 0 known bugs
 
 ---
 
-## 📄 许可证
+## 💬 Feedback & Community
 
-[MIT](LICENSE) — 可自由用于商业与非商业用途。
+- **GitHub Discussions (official feedback channel)**: feature suggestions, deployment pitfalls, and usage questions are all welcome in [Discussions](https://github.com/wangjiongwei8/visitor-management/discussions).
+- **Issue / PR**: see [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports and code contributions.
+- The project is fully self-hosted under the MIT License. Fork it, build on it, and share your improvements.
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) — free for commercial and non-commercial use.

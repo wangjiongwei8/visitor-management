@@ -1,196 +1,198 @@
-# 访客管理系统（开源版）— 系统架构设计 + 任务分解
+> 🇺🇸 English | 🇨🇳 [中文](ARCHITECTURE.zh-CN.md)
+
+# Visitor Management System (Open Source) — System Architecture Design + Task Breakdown
 
 > **Architect**: Bob  
 > **Date**: 2025-07-16  
-> **基于版本**: v1.0.0  
-> **技术栈**: Next.js 16 (App Router) + TypeScript + Tailwind CSS + shadcn/ui + Drizzle ORM + PostgreSQL  
+> **Based on version**: v1.0.0  
+> **Tech stack**: Next.js 16 (App Router) + TypeScript + Tailwind CSS + shadcn/ui + Drizzle ORM + PostgreSQL  
 
 ---
 
-## 1. 现状分析
+## 1. Current State Analysis
 
-### 1.1 需要修改的核心模块
+### 1.1 Core Modules to Modify
 
-| 模块 | 变更类型 | 现有状态 | 目标 |
+| Module | Change type | Current state | Target |
 |------|----------|---------|---------|
-| **公开预约页面** `/public/appointment` | 🔄 修改 | 显示"员工登录 / 访客预约"二选一 | 直接展示访客预约表单（移除员工登录入口） |
-| **扫码预约 API** `/api/scan-appointment` | 🔄 修改 | 提交后 status 固定为 `pending` | 根据审核开关决定：ON→`pending`，OFF→`scheduled` |
-| **预约创建 API** `/api/appointments` POST | 🔄 修改 | 需登录（admin/employee），status 固定 `scheduled` | 保留原有逻辑，员工创建的仍自动通过 |
-| **待审批列表 API** `/api/appointments/pending` | 🔄 修改 | 已按 visitObject 过滤（员工） | 基本满足，需确认前端展示 |
-| **审批/驳回 API** | ✅ 可用 | 权限已限制为 admin/受访人 | 复用，无需改动 |
-| **系统设置 API** `/api/admin/settings` | 🔄 修改 | 已有 `auto_approve` 键 | 新增 `review_enabled` 键作为审核开关 |
-| **被访人匹配** | 🆕 新增 | 前端无匹配逻辑 | 访客填受访人时从 host_contacts 实时匹配 |
-| **访客预约表单** `ScanAppointmentForm` | 🔄 修改 | 存在但需增加受访人匹配 | 增加 host_contacts 搜索/确认交互 |
-| **审核开关管理页** | 🆕 新增 | 无独立页面 | 在管理后台增加审核开关控件 |
-| **被访人审核列表页** | 🆕 新增 | 无独立页面 | 员工可查看自己的待审核列表 |
+| **Public appointment page** `/public/appointment` | 🔄 Modify | Shows "employee login / visitor appointment" choice | Directly show visitor appointment form (remove employee login entry) |
+| **Scan appointment API** `/api/scan-appointment` | 🔄 Modify | status fixed `pending` after submit | Decide by review toggle: ON→`pending`, OFF→`scheduled` |
+| **Appointment create API** `/api/appointments` POST | 🔄 Modify | Requires login (admin/employee), status fixed `scheduled` | Keep existing logic; employee-created still auto-approves |
+| **Pending approval list API** `/api/appointments/pending` | 🔄 Modify | Already filtered by visitObject (employee) | Mostly satisfied; confirm frontend display |
+| **Approve/Reject API** | ✅ Usable | Permission limited to admin/host | Reuse, no change |
+| **System settings API** `/api/admin/settings` | 🔄 Modify | Has `auto_approve` key | Add `review_enabled` key as review toggle |
+| **Host matching** | 🆕 New | No frontend matching logic | Match against host_contacts in real time when visitor fills host |
+| **Visitor appointment form** `ScanAppointmentForm` | 🔄 Modify | Exists but needs host matching | Add host_contacts search/confirm interaction |
+| **Review toggle management page** | 🆕 New | No standalone page | Add review toggle control in admin backend |
+| **Host review list page** | 🆕 New | No standalone page | Employee can view their own pending list |
 
-### 1.2 需要删除的模块
+### 1.2 Modules to Delete
 
-| 模块 | 涉及文件/目录 | 说明 |
+| Module | Files/dirs | Notes |
 |------|--------------|------|
-| **邮件系统** | `src/lib/email.ts`, `/api/admin/email-config/`, `/api/admin/notification-recipients/`, `/api/admin/notification-tasks/`, `/api/scheduler/run/` | PRD 明确移除邮件通知 |
-| **访客证打印** | `/api/visit-cards/`, `src/lib/schema.ts` 中 `visitCards` 表定义 | PRD 明确移除访客证打印 |
-| **通知系统** | `src/storage/database/shared/schema.ts` 中 `notificationTasks`, `notificationRecipientGroups`, `notificationRecipients` 表 | 依赖邮件系统 |
-| **一键审批** `auto_approve` | 系统设置中的旧键 | 替换为 `review_enabled` |
+| **Email system** | `src/lib/email.ts`, `/api/admin/email-config/`, `/api/admin/notification-recipients/`, `/api/admin/notification-tasks/`, `/api/scheduler/run/` | PRD explicitly removes email notifications |
+| **Visitor badge printing** | `/api/visit-cards/`, `visitCards` table in `src/lib/schema.ts` | PRD explicitly removes visitor badge printing |
+| **Notification system** | `notificationTasks`, `notificationRecipientGroups`, `notificationRecipients` tables in `src/storage/database/shared/schema.ts` | Depends on email system |
+| **One-click approval** `auto_approve` | Old key in system settings | Replaced by `review_enabled` |
 
-### 1.3 完整保留的模块（不变）
+### 1.3 Fully Retained Modules (unchanged)
 
-| 模块 | 关键文件 | 说明 |
+| Module | Key files | Notes |
 |------|---------|------|
-| 用户认证与 RBAC | `src/lib/auth.ts`, `src/middleware.ts`, `/api/auth/*` | Cookie + HMAC-SHA256 token 机制不变 |
-| 门卫签到 | `/security/check-in/`, `/api/visitors/search/`, `visitor-check-in.tsx` | 签到流程完全不变 |
-| 门卫签退 | `/security/check-out/`, `/api/visit-records/checkout/` | 签退流程完全不变 |
-| 黑名单管理 | `/admin/blacklist/`, `/api/blacklist/`, `src/lib/blacklist.ts` | 签到拦截逻辑不变 |
-| 长约车辆/人员 | `/admin/long-term-vehicles/`, `/api/long-term-vehicles/`, `visitor-search.tsx` | 全部保留 |
-| 用户管理 | `/admin/users/`, `/api/admin/users/` | 增删改查、批量导入不变 |
-| 密码策略 | `/admin/password-policy/`, `/api/admin/password-policy/` | 复杂度、过期、锁定不变 |
-| 操作日志 | `/api/stats/`, middleware 日志 | 保留 |
-| 预约管理 | `/management/`, `/api/appointments/query/`, `/api/visitors/management-query/` | 保留 |
-| 访客看板 | `/api/stats/`, `page.tsx` 统计卡片 | 保留 |
-| 受访人清单 | `/admin/host-contacts/`, `/api/host-contacts/` | 保留 |
-| 数据导出 | `/api/visitors/management-query/` 导出逻辑 | 保留 |
+| User auth & RBAC | `src/lib/auth.ts`, `src/middleware.ts`, `/api/auth/*` | Cookie + HMAC-SHA256 token mechanism unchanged |
+| Guard check-in | `/security/check-in/`, `/api/visitors/search/`, `visitor-check-in.tsx` | Check-in flow unchanged |
+| Guard check-out | `/security/check-out/`, `/api/visit-records/checkout/` | Check-out flow unchanged |
+| Blacklist management | `/admin/blacklist/`, `/api/blacklist/`, `src/lib/blacklist.ts` | Check-in interception logic unchanged |
+| Long-term vehicles/personnel | `/admin/long-term-vehicles/`, `/api/long-term-vehicles/`, `visitor-search.tsx` | All retained |
+| User management | `/admin/users/`, `/api/admin/users/` | CRUD, bulk import unchanged |
+| Password policy | `/admin/password-policy/`, `/api/admin/password-policy/` | Complexity, expiry, lockout unchanged |
+| Operation logs | `/api/stats/`, middleware logs | Retained |
+| Appointment management | `/management/`, `/api/appointments/query/`, `/api/visitors/management-query/` | Retained |
+| Visitor dashboard | `/api/stats/`, `page.tsx` stat cards | Retained |
+| Host list | `/admin/host-contacts/`, `/api/host-contacts/` | Retained |
+| Data export | `/api/visitors/management-query/` export logic | Retained |
 
 ---
 
-## 2. 实现方案 + 框架选型
+## 2. Implementation Plan + Framework Selection
 
-### 2.1 核心改动策略
+### 2.1 Core Change Strategy
 
-**原则：最小变更，能不改的代码绝对不改。**
+**Principle: minimal change — never modify code that doesn't need to be modified.**
 
-本系统不是重写，而是在现有代码基础上的增量改造。核心改动只有三件事：
+This is not a rewrite but an incremental enhancement on existing code. The core changes are only three things:
 
-1. **公开预约入口简化**：`/public/appointment` 去掉身份选择，直接展示访客表单
-2. **审核开关 + 自动通过逻辑**：利用现有 `system_settings` 表新增 `review_enabled` 键
-3. **被访人实时匹配**：复用已有 `/api/host-contacts?query=` API，在前端加搜索下拉
+1. **Simplify public appointment entry**: `/public/appointment` removes identity selection and directly shows the visitor form
+2. **Review toggle + auto-approve logic**: use the existing `system_settings` table, add `review_enabled` key
+3. **Host real-time matching**: reuse the existing `/api/host-contacts?query=` API, add a search dropdown on the frontend
 
-### 2.2 技术选型
+### 2.2 Tech Selection
 
-| 决策点 | 选择 | 理由 |
+| Decision | Choice | Reason |
 |--------|------|------|
-| 审核开关存储 | `system_settings` 表，key=`review_enabled` | 复用现有基础设施，无需新增表 |
-| 被访人匹配 | 前端 autocomplete + 已有 `/api/host-contacts?query=` | API 已支持模糊搜索，无需后端改动 |
-| 二维码生成 | 保留 `qrcode` 包 + `/admin/qrcode` 页面 | 已有完整实现，URL 指向 `/public/appointment` |
-| 状态枚举 | 沿用现有枚举: `pending/scheduled/checked_in/checked_out/rejected/cancelled` | 无需新增状态 |
-| 框架版本 | Next.js 16 + React 19 + Drizzle ORM 0.45 | 保持不变，不升级 |
+| Review toggle storage | `system_settings` table, key=`review_enabled` | Reuse existing infra, no new table |
+| Host matching | Frontend autocomplete + existing `/api/host-contacts?query=` | API already supports fuzzy search, no backend change |
+| QR code generation | Keep `qrcode` package + `/admin/qrcode` page | Already fully implemented, URL points to `/public/appointment` |
+| Status enum | Reuse existing enum: `pending/scheduled/checked_in/checked_out/rejected/cancelled` | No new status needed |
+| Framework version | Next.js 16 + React 19 + Drizzle ORM 0.45 | Keep, no upgrade |
 
-### 2.3 审核开关的两种模式
+### 2.3 Two Modes of the Review Toggle
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│              审核开关 (review_enabled)               │
+│              Review toggle (review_enabled)          │
 ├──────────────────────┬──────────────────────────────┤
-│       关闭 (false)    │        开启 (true)            │
+│       Off (false)    │         On (true)             │
 ├──────────────────────┼──────────────────────────────┤
-│ 访客提交 → scheduled │ 访客提交 → pending           │
-│ 门卫可直接签到       │ → 被访人审核                  │
-│ 无需人工干预         │   → 通过 → scheduled          │
-│                      │   → 拒绝 → rejected (附原因)  │
+│ Visitor submit → scheduled │ Visitor submit → pending │
+│ Guard can check in directly │ → Host reviews          │
+│ No manual intervention     │   → Approve → scheduled   │
+│                            │   → Reject → rejected (with reason) │
 └──────────────────────┴──────────────────────────────┘
 ```
 
-### 2.4 两种登记模式
+### 2.4 Two Registration Modes
 
-系统支持两种并行的登记模式，门卫签到流程完全共用：
+The system supports two parallel registration modes, fully sharing the guard check-in flow:
 
-- **模式一 · 电脑端内部审核（预审单模式）**：员工在内部后台代为填写来访预约（预审单），复用已有 `/api/appointments` POST（需登录，`createdBy=employee`），提交后状态固定为 `scheduled`，**不进入待审核、不触发被访人审核**。访客 / 门卫到现场时，门卫在签到页直接搜索该预审单并签到发牌，**无需访客扫码**。
-- **模式二 · 二维码扫码登记模式**：访客现场扫描 `/public/appointment` 固定二维码自助填表，经 `/api/scan-appointment` 提交，按 `review_enabled` 进入 `pending`（被访人审核）或 `scheduled`（自动通过），见 5.1 / 5.2。
+- **Mode 1 · Internal backend review (Pre-registration mode)**: an employee fills the visit appointment on behalf of the visitor in the internal backend (a pre-registration form), reusing the existing `/api/appointments` POST (requires login, `createdBy=employee`); on submit status is fixed `scheduled`, **not entering pending review and not triggering host review**. When the visitor/guard arrives, the guard searches that pre-registration directly on the check-in page and checks in & issues a badge, **without the visitor scanning**.
+- **Mode 2 · QR-code scan registration**: the visitor scans the fixed `/public/appointment` QR code on-site and self-registers, submitted via `/api/scan-appointment`, entering `pending` (host review) or `scheduled` (auto-approve) per `review_enabled`, see 5.1 / 5.2.
 
-两种模式写入同一 `appointments` 表，仅 `created_by` 与状态流转不同；门卫签到搜索对两者统一呈现。
+Both modes write to the same `appointments` table, differing only in `created_by` and status transition; the guard check-in search presents both uniformly.
 
 ---
 
-## 3. 文件变更清单
+## 3. File Change List
 
-### 3.1 新增文件 (NEW)
+### 3.1 New Files (NEW)
 
-| 相对路径 | 说明 |
+| Path | Description |
 |----------|------|
-| `src/components/visitor/host-contact-search.tsx` | 被访人实时搜索匹配组件（autocomplete） |
-| `src/app/api/settings/public/route.ts` | 公开 API：前端获取审核开关状态（无需登录） |
+| `src/components/visitor/host-contact-search.tsx` | Host real-time search & match component (autocomplete) |
+| `src/app/api/settings/public/route.ts` | Public API: frontend fetches review toggle status (no auth) |
 
-### 3.2 修改文件 (MODIFY)
+### 3.2 Modified Files (MODIFY)
 
-| 相对路径 | 变更说明 |
+| Path | Change |
 |----------|---------|
-| `src/app/public/appointment/page.tsx` | **重大简化**：移除身份选择 + 员工登录视图，直接渲染访客表单 |
-| `src/components/visitor/scan-appointment-form.tsx` | 集成 HostContactSearch 组件；修正 `scan-appointment` API 路径 |
-| `src/app/api/scan-appointment/route.ts` | 提交时读取 `review_enabled` 设置：OFF → status=scheduled, ON → status=pending |
-| `src/app/api/admin/settings/route.ts` | GET 新增返回 `reviewEnabled`；POST 新增处理 `reviewEnabled` |
-| `src/middleware.ts` | 调整 publicPaths：移除 `/scan-appointment` 等废弃路径；确认 `/public` 在白名单 |
-| `src/app/my-appointments/page.tsx` | 新增「待审核」tab（仅在 `review_enabled=true` 且有 pending 预约时显示） |
-| `src/app/page.tsx` | 在员工角色首页增加待审核数量提醒 badge |
+| `src/app/public/appointment/page.tsx` | **Major simplification**: remove identity selection + employee login view, render visitor form directly |
+| `src/components/visitor/scan-appointment-form.tsx` | Integrate HostContactSearch component; fix `scan-appointment` API path |
+| `src/app/api/scan-appointment/route.ts` | On submit read `review_enabled`: OFF → status=scheduled, ON → status=pending |
+| `src/app/api/admin/settings/route.ts` | GET adds `reviewEnabled`; POST adds handling for `reviewEnabled` |
+| `src/middleware.ts` | Adjust publicPaths: remove deprecated paths like `/scan-appointment`; confirm `/public` in allowlist |
+| `src/app/my-appointments/page.tsx` | Add "Pending Review" tab (shown only when `review_enabled=true` and there are pending appointments) |
+| `src/app/page.tsx` | Add pending-review count badge on employee home |
 
-### 3.3 删除文件 (DELETE)
+### 3.3 Deleted Files (DELETE)
 
-| 相对路径 | 说明 |
+| Path | Description |
 |----------|------|
-| `src/lib/email.ts` | 邮件发送模块（不需要） |
-| `src/lib/scheduler.ts` | 定时任务（依赖邮件） |
-| `src/app/api/admin/email-config/route.ts` | 邮件配置 API |
-| `src/app/api/admin/email-config/test/route.ts` | 邮件测试 API |
-| `src/app/api/admin/notification-recipients/route.ts` | 通知地址 API |
-| `src/app/api/admin/notification-recipients/[id]/route.ts` | 通知地址详情 API |
-| `src/app/api/admin/notification-tasks/route.ts` | 通知任务 API |
-| `src/app/api/scheduler/run/route.ts` | 定时任务触发 API |
-| `src/app/api/visit-cards/route.ts` | 访客证 API |
-| `src/app/api/visit-cards/latest/route.ts` | 访客证最新 API |
-| `src/app/api/scan-appointment/route.ts` (旧 scan-appointment 页) | sca-appointment 旧路由（如存在） |
-| `src/app/scan-appointment/page.tsx` | 旧扫码预约页 |
-| `src/app/scan/page.tsx` | 旧扫码页 |
+| `src/lib/email.ts` | Email sending module (not needed) |
+| `src/lib/scheduler.ts` | Scheduled tasks (depends on email) |
+| `src/app/api/admin/email-config/route.ts` | Email config API |
+| `src/app/api/admin/email-config/test/route.ts` | Email test API |
+| `src/app/api/admin/notification-recipients/route.ts` | Notification address API |
+| `src/app/api/admin/notification-recipients/[id]/route.ts` | Notification address detail API |
+| `src/app/api/admin/notification-tasks/route.ts` | Notification task API |
+| `src/app/api/scheduler/run/route.ts` | Scheduled task trigger API |
+| `src/app/api/visit-cards/route.ts` | Visitor badge API |
+| `src/app/api/visit-cards/latest/route.ts` | Visitor badge latest API |
+| `src/app/api/scan-appointment/route.ts` (old scan-appointment page) | old sca-appointment route (if exists) |
+| `src/app/scan-appointment/page.tsx` | Old scan appointment page |
+| `src/app/scan/page.tsx` | Old scan page |
 
-### 3.4 保留文件 (KEEP，无变更)
+### 3.4 Retained Files (KEEP, no change)
 
-| 模块 | 文件范围 |
+| Module | File scope |
 |------|---------|
-| 认证系统 | `src/lib/auth.ts`, `src/middleware.ts`（仅微调 public paths） |
-| 数据库 | `src/lib/db.ts`, `src/storage/database/shared/schema.ts` |
-| UI 组件库 | `src/components/ui/*` (全部 shadcn/ui 组件) |
-| 管理后台 | `src/app/admin/users/*`, `src/app/admin/blacklist/*`, `src/app/admin/host-contacts/*`, `src/app/admin/long-term-vehicles/*`, `src/app/admin/password-policy/*`, `src/app/admin/qrcode/*` |
-| 门卫端 | `src/app/security/*`, `src/components/security/*` |
-| 预约管理 | `src/app/management/*`, `src/app/appointment/*` |
-| 布局 | `src/app/layout.tsx`, `src/components/layout/app-layout.tsx` |
-| API 路由（保留） | 所有 blacklist、host-contacts、long-term-vehicles、users、visitors、visit-records、stats、auth、appointments（除 approve/pending/reject 外的修改）相关 API |
+| Auth system | `src/lib/auth.ts`, `src/middleware.ts` (only minor public-path tweaks) |
+| Database | `src/lib/db.ts`, `src/storage/database/shared/schema.ts` |
+| UI component library | `src/components/ui/*` (all shadcn/ui components) |
+| Admin backend | `src/app/admin/users/*`, `src/app/admin/blacklist/*`, `src/app/admin/host-contacts/*`, `src/app/admin/long-term-vehicles/*`, `src/app/admin/password-policy/*`, `src/app/admin/qrcode/*` |
+| Guard console | `src/app/security/*`, `src/components/security/*` |
+| Appointment management | `src/app/management/*`, `src/app/appointment/*` |
+| Layout | `src/app/layout.tsx`, `src/components/layout/app-layout.tsx` |
+| API routes (kept) | All blacklist, host-contacts, long-term-vehicles, users, visitors, visit-records, stats, auth, appointments (except approve/pending/reject modifications) related APIs |
 
 ---
 
-## 4. 数据结构和接口
+## 4. Data Structure & Interfaces
 
-### 4.1 数据库表变更
+### 4.1 DB Table Changes
 
-**无需新增任何数据库表或字段。** 所有改动通过 `system_settings` 表实现。
+**No new DB tables or columns needed.** All changes go through the `system_settings` table.
 
-| 变更 | 详情 |
+| Change | Detail |
 |------|------|
-| 新增设置项 | `system_settings` 表插入 key=`review_enabled`, value=`"true"`, description=`"审核开关：开启后访客预约需被访人审核"` |
-| 废弃设置项 | key=`auto_approve` 保留但不再读取（向后兼容） |
+| New setting | Insert into `system_settings` key=`review_enabled`, value=`"true"`, description=`"Review toggle: when on, visitor appointments require host review"` |
+| Deprecated setting | key=`auto_approve` kept but no longer read (backward compatible) |
 
-**seed/migration SQL（建议）**:
+**seed/migration SQL (suggested)**:
 ```sql
 INSERT INTO system_settings (key, value, description)
-VALUES ('review_enabled', 'true', '审核开关：开启后访客预约需被访人审核')
+VALUES ('review_enabled', 'true', 'Review toggle: when on, visitor appointments require host review')
 ON CONFLICT (key) DO NOTHING;
 ```
 
-### 4.2 API 接口清单
+### 4.2 API List
 
-#### 新增 API
+#### New APIs
 
-| 方法 | 路径 | 认证 | 说明 |
+| Method | Path | Auth | Description |
 |------|------|------|------|
-| GET | `/api/settings/public` | 无 | 返回 `{ reviewEnabled: boolean }`，供公开预约页判断 |
+| GET | `/api/settings/public` | None | Returns `{ reviewEnabled: boolean }` for the public appointment page |
 
-#### 修改 API
+#### Modified APIs
 
-| 方法 | 路径 | 变更说明 |
+| Method | Path | Change |
 |------|------|---------|
-| POST | `/api/scan-appointment` | 提交时读取 `review_enabled`：`false` → status=`scheduled`；`true` → status=`pending` |
-| GET | `/api/admin/settings` | 响应新增 `reviewEnabled` 字段 |
-| POST | `/api/admin/settings` | 支持更新 `reviewEnabled` |
+| POST | `/api/scan-appointment` | On submit read `review_enabled`: `false` → status=`scheduled`; `true` → status=`pending` |
+| GET | `/api/admin/settings` | Response adds `reviewEnabled` field |
+| POST | `/api/admin/settings` | Supports updating `reviewEnabled` |
 
-#### 删除 API
+#### Deleted APIs
 
-| 方法 | 路径 |
+| Method | Path |
 |------|------|
 | ALL | `/api/admin/email-config` |
 | ALL | `/api/admin/email-config/test` |
@@ -201,33 +203,33 @@ ON CONFLICT (key) DO NOTHING;
 | ALL | `/api/visit-cards` |
 | ALL | `/api/visit-cards/latest` |
 
-#### 保留 API（无变更）
+#### Retained APIs (unchanged)
 
-以下全部 API 保持不变，直接复用：
+The following APIs are all unchanged and reused directly:
 
-| 模块 | 路径 |
+| Module | Path |
 |------|------|
-| 认证 | `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/change-password`, `/api/auth/password-policy` |
-| 预约 | `/api/appointments` (GET/POST), `/api/appointments/[id]`, `/api/appointments/approve`, `/api/appointments/reject`, `/api/appointments/pending`, `/api/appointments/query` |
-| 我的预约 | `/api/my-appointments` |
-| 访客 | `/api/visitors/search`, `/api/visitors`, `/api/visitors/management-query`, `/api/visitors/delete` |
-| 签到签退 | `/api/visit-records`, `/api/visit-records/checkout`, `/api/visit-records/today` |
-| 黑名单 | `/api/blacklist`, `/api/blacklist/[id]` |
-| 受访人 | `/api/host-contacts`, `/api/host-contacts/[id]`, `/api/host-contacts/batch-delete` |
-| 长约车 | `/api/long-term-vehicles`, `/api/long-term-vehicles/send-reminder` |
-| 用户管理 | `/api/admin/users`, `/api/admin/users/[id]`, `/api/admin/users/batch-delete`, `/api/admin/users/import` |
-| 密码策略 | `/api/admin/password-policy` |
-| 统计 | `/api/stats` |
-| 看板 | `/api/visitor-board` |
-| 二维码 | `/api/admin/qrcode` (如存在) |
-| 健康检查 | `/api/health` |
+| Auth | `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/change-password`, `/api/auth/password-policy` |
+| Appointment | `/api/appointments` (GET/POST), `/api/appointments/[id]`, `/api/appointments/approve`, `/api/appointments/reject`, `/api/appointments/pending`, `/api/appointments/query` |
+| My Appointments | `/api/my-appointments` |
+| Visitor | `/api/visitors/search`, `/api/visitors`, `/api/visitors/management-query`, `/api/visitors/delete` |
+| Check-in/out | `/api/visit-records`, `/api/visit-records/checkout`, `/api/visit-records/today` |
+| Blacklist | `/api/blacklist`, `/api/blacklist/[id]` |
+| Host | `/api/host-contacts`, `/api/host-contacts/[id]`, `/api/host-contacts/batch-delete` |
+| Long-term vehicle | `/api/long-term-vehicles`, `/api/long-term-vehicles/send-reminder` |
+| User management | `/api/admin/users`, `/api/admin/users/[id]`, `/api/admin/users/batch-delete`, `/api/admin/users/import` |
+| Password policy | `/api/admin/password-policy` |
+| Stats | `/api/stats` |
+| Dashboard | `/api/visitor-board` |
+| QR code | `/api/admin/qrcode` (if exists) |
+| Health check | `/api/health` |
 
-### 4.3 数据流：审核开关的判断逻辑
+### 4.3 Data Flow: Review Toggle Decision Logic
 
 ```
 scan-appointment POST handler:
 
-1. 查询 system_settings WHERE key = 'review_enabled'
+1. Query system_settings WHERE key = 'review_enabled'
 2. reviewEnabled = (setting.value === 'true')
 3. if reviewEnabled:
      status = 'pending'
@@ -235,15 +237,15 @@ scan-appointment POST handler:
    else:
      status = 'scheduled'
      createdBy = 'visitor'
-4. 插入 appointments 表
-5. 返回结果
+4. Insert into appointments table
+5. Return result
 ```
 
 ---
 
-## 5. 程序调用流程时序图
+## 5. Sequence Diagrams
 
-### 5.1 扫码预约全流程（审核开启）
+### 5.1 Full Scan Flow (review on)
 
 ```mermaid
 sequenceDiagram
@@ -314,7 +316,7 @@ sequenceDiagram
     CheckIn-->>Guard: 显示预约 → 签到 → 发放通行牌
 ```
 
-### 5.2 扫码预约全流程（审核关闭）
+### 5.2 Full Scan Flow (review off)
 
 ```mermaid
 sequenceDiagram
@@ -341,7 +343,7 @@ sequenceDiagram
     Guard->>Guard: 搜索 → 签到 → 通行牌
 ```
 
-### 5.3 预审单全流程（模式一，员工代填）
+### 5.3 Pre-registration Full Flow (Mode 1, employee-filled)
 
 ```mermaid
 sequenceDiagram
@@ -372,130 +374,130 @@ sequenceDiagram
 
 ---
 
-## 6. 任务列表
+## 6. Task List
 
-### 6.1 任务总览
+### 6.1 Task Overview
 
-| Task ID | 任务名称 | 优先级 | 预估文件数 | 依赖 |
+| Task ID | Name | Priority | Est. files | Deps |
 |---------|---------|--------|-----------|------|
-| T01 | 项目基础设施：依赖清理 + 配置更新 + 公共入口 | P0 | ~8 | 无 |
-| T02 | 核心 API 改造：审核开关 + 预约流程 + 公开设置 | P0 | ~6 | T01 |
-| T03 | 前端核心：公开预约页改造 + 被访人匹配组件 | P0 | ~5 | T01, T02 |
-| T04 | 被访人审核页 + 员工端集成 | P0 | ~4 | T01, T02 |
-| T05 | 清理收尾：删除废弃代码 + 中间件调整 + 集成验证 | P1 | ~15 (删除) | T01-T04 |
+| T01 | Project infra: dependency cleanup + config update + public entry | P0 | ~8 | None |
+| T02 | Core API: review toggle + appointment flow + public settings | P0 | ~6 | T01 |
+| T03 | Frontend core: public appointment page + host match component | P0 | ~5 | T01, T02 |
+| T04 | Host review page + employee console integration | P0 | ~4 | T01, T02 |
+| T05 | Cleanup: delete deprecated code + middleware adjust + integration verify | P1 | ~15 (delete) | T01-T04 |
 
 ---
 
-### 6.2 任务详情
+### 6.2 Task Details
 
-#### T01: 项目基础设施：依赖清理 + 配置更新 + 公共设置 API
+#### T01: Project infra: dependency cleanup + config update + public settings API
 
-**描述**：
-1. 从 `package.json` 移除 `nodemailer`, `@types/nodemailer`, `@aws-sdk/client-s3`, `@aws-sdk/lib-storage` 等邮件/S3 相关依赖
-2. 执行 `pnpm install` 更新 lockfile
-3. 新增 `/api/settings/public` 路由：无需认证，返回 `{ reviewEnabled: boolean }`
-4. 确保 `system_settings` 存在 `review_enabled` 的 seed 逻辑（在 `auth.ts` 的初始化中或新建 migration）
-5. 更新 middleware.ts 的 publicPaths：添加 `/api/settings/public`，清理废弃路径
+**Description**:
+1. Remove email/S3 related deps from `package.json`: `nodemailer`, `@types/nodemailer`, `@aws-sdk/client-s3`, `@aws-sdk/lib-storage`
+2. Run `pnpm install` to update lockfile
+3. Add `/api/settings/public` route: no auth, returns `{ reviewEnabled: boolean }`
+4. Ensure `system_settings` has `review_enabled` seed logic (in `auth.ts` init or a new migration)
+5. Update middleware.ts publicPaths: add `/api/settings/public`, clean deprecated paths
 
-**源文件**：
+**Source files**:
 - `package.json` (MODIFY)
-- `pnpm-lock.yaml` (MODIFY - 自动生成)
+- `pnpm-lock.yaml` (MODIFY - auto-generated)
 - `src/app/api/settings/public/route.ts` (NEW)
 - `src/middleware.ts` (MODIFY)
-- `src/lib/auth.ts` (MODIFY - 添加 review_enabled 初始化)
-- `src/lib/schema.ts` (MODIFY - 如有相关导出需调整)
+- `src/lib/auth.ts` (MODIFY - add review_enabled init)
+- `src/lib/schema.ts` (MODIFY - adjust exports if relevant)
 
-**依赖**: 无  
-**优先级**: P0
+**Deps**: None  
+**Priority**: P0
 
 ---
 
-#### T02: 核心 API 改造：审核开关逻辑 + 预约流程
+#### T02: Core API: review toggle logic + appointment flow
 
-**描述**：
-1. 修改 `/api/scan-appointment/route.ts`：提交时查询 `review_enabled` 设置，ON → status=pending，OFF → status=scheduled
-2. 修改 `/api/admin/settings/route.ts`：GET 返回 `reviewEnabled`；POST 支持 `reviewEnabled` 更新
-3. 修改 `/api/appointments/pending/route.ts`：确认员工角色只能看到 visitObject 是自己的 pending 预约（检查逻辑正确性）
-4. 确认 `/api/appointments/approve` 和 `/api/appointments/reject` 的权限逻辑正确（已有：仅 admin 或 visitObject 匹配者可操作）
+**Description**:
+1. Modify `/api/scan-appointment/route.ts`: on submit read `review_enabled`; ON → pending, OFF → scheduled
+2. Modify `/api/admin/settings/route.ts`: GET returns `reviewEnabled`; POST supports `reviewEnabled` update
+3. Modify `/api/appointments/pending/route.ts`: confirm employee role only sees pending where visitObject is self (verify logic)
+4. Confirm `/api/appointments/approve` and `/api/appointments/reject` permission logic (existing: only admin or visitObject matcher)
 
-**源文件**：
+**Source files**:
 - `src/app/api/scan-appointment/route.ts` (MODIFY)
 - `src/app/api/admin/settings/route.ts` (MODIFY)
-- `src/app/api/appointments/pending/route.ts` (MODIFY - 微调确认)
-- `src/storage/database/shared/schema.ts` (MODIFY - 添加 REVIEW_ENABLED 键到 SYSTEM_SETTING_KEYS)
+- `src/app/api/appointments/pending/route.ts` (MODIFY - minor confirm)
+- `src/storage/database/shared/schema.ts` (MODIFY - add REVIEW_ENABLED key to SYSTEM_SETTING_KEYS)
 
-**依赖**: T01  
-**优先级**: P0
+**Deps**: T01  
+**Priority**: P0
 
 ---
 
-#### T03: 前端核心：公开预约页改造 + 被访人匹配组件
+#### T03: Frontend core: public appointment page + host match component
 
-**描述**：
-1. **改造 `src/app/public/appointment/page.tsx`**：
-   - 移除身份选择（"员工登录 / 访客预约"二选一）视图
-   - 移除员工登录表单视图
-   - 页面加载时通过 `/api/settings/public` 获取审核开关状态
-   - 直接渲染 `ScanAppointmentForm` 组件
-   - 根据审核状态显示不同提示文案（"需审核"/"无需审核"）
+**Description**:
+1. **Modify `src/app/public/appointment/page.tsx`**:
+   - Remove identity selection ("employee login / visitor appointment" choice) view
+   - Remove employee login form view
+   - On page load fetch review toggle via `/api/settings/public`
+   - Render `ScanAppointmentForm` directly
+   - Show different hint text by review state ("needs review" / "no review needed")
 
-2. **新建 `src/components/visitor/host-contact-search.tsx`**：
-   - 实现输入框 + 下拉搜索列表
-   - 调用 `/api/host-contacts?query=` 实时搜索
-   - 显示匹配结果（姓名 + 部门）
-   - 无匹配结果时显示"未找到匹配的受访人，将作为新受访人记录"确认提示
+2. **New `src/components/visitor/host-contact-search.tsx`**:
+   - Input box + dropdown search list
+   - Call `/api/host-contacts?query=` for real-time search
+   - Show matches (name + department)
+   - When no match, show "No matching host found; will be recorded as a new host" confirmation prompt
 
-3. **修改 `src/components/visitor/scan-appointment-form.tsx`**：
-   - 将被访人输入框替换为 `HostContactSearch` 组件
-   - 调整表单样式适配移动端
+3. **Modify `src/components/visitor/scan-appointment-form.tsx`**:
+   - Replace host input with `HostContactSearch` component
+   - Adapt form style for mobile
 
-**源文件**：
-- `src/app/public/appointment/page.tsx` (MODIFY - 重大简化)
+**Source files**:
+- `src/app/public/appointment/page.tsx` (MODIFY - major simplification)
 - `src/components/visitor/host-contact-search.tsx` (NEW)
 - `src/components/visitor/scan-appointment-form.tsx` (MODIFY)
 
-**依赖**: T01, T02  
-**优先级**: P0
+**Deps**: T01, T02  
+**Priority**: P0
 
 ---
 
-#### T04: 被访人审核页 + 员工端集成
+#### T04: Host review page + employee console integration
 
-**描述**：
-1. **改造 `src/app/my-appointments/page.tsx`**：
-   - 新增「待审核」标签页（Tab），调用 `/api/appointments/pending` 获取列表
-   - 每个待审核项显示：访客姓名、手机号、来访事由、预约时间、操作按钮（通过/拒绝）
-   - 拒绝时弹出对话框要求填写原因
-   - 审核开关关闭时隐藏此 Tab
+**Description**:
+1. **Modify `src/app/my-appointments/page.tsx`**:
+   - Add "Pending Review" tab, calls `/api/appointments/pending` for list
+   - Each pending item shows: visitor name, phone, visit purpose, appointment time, action buttons (approve/reject)
+   - On reject, pop a dialog requiring a reason
+   - Hide this tab when review toggle is off
 
-2. **改造 `src/app/page.tsx`（首页）**：
-   - 员工角色首页：增加待审核数量 badge
-   - 点击跳转到 my-appointments 的待审核 tab
+2. **Modify `src/app/page.tsx` (home)**:
+   - Employee home: add pending-review count badge
+   - Click jumps to my-appointments pending tab
 
-3. 调用已有的 `/api/appointments/approve` 和 `/api/appointments/reject` API
+3. Call existing `/api/appointments/approve` and `/api/appointments/reject` APIs
 
-**源文件**：
+**Source files**:
 - `src/app/my-appointments/page.tsx` (MODIFY)
 - `src/app/page.tsx` (MODIFY)
-- `src/app/api/appointments/pending/route.ts` (MODIFY - 优化)
+- `src/app/api/appointments/pending/route.ts` (MODIFY - optimize)
 
-**依赖**: T01, T02  
-**优先级**: P0
+**Deps**: T01, T02  
+**Priority**: P0
 
 ---
 
-#### T05: 清理收尾：删除废弃代码 + 中间件调整 + 集成验证
+#### T05: Cleanup: delete deprecated code + middleware adjust + integration verify
 
-**描述**：
-1. 删除所有邮件相关文件（见 3.3 删除列表）
-2. 删除访客证打印相关 API 路由
-3. 从 `src/lib/schema.ts` 中删除 `visitCards` 表定义（保留 Drizzle schema 纯净）
-4. 从 `src/storage/database/shared/schema.ts` 中删除通知相关表：`notificationTasks`, `notificationRecipientGroups`, `notificationRecipients`, `emailConfig`
-5. 删除旧页面：`src/app/scan-appointment/`, `src/app/scan/`（如存在且废弃）
-6. 调整 `src/middleware.ts`：清理废弃的 public paths，确保 `/public`、`/api/settings/public` 正确放行
-7. 最终集成测试：验证完整流程
+**Description**:
+1. Delete all email-related files (see 3.3 delete list)
+2. Delete visitor badge printing related API routes
+3. Remove `visitCards` table definition from `src/lib/schema.ts` (keep Drizzle schema clean)
+4. Remove notification-related tables from `src/storage/database/shared/schema.ts`: `notificationTasks`, `notificationRecipientGroups`, `notificationRecipients`, `emailConfig`
+5. Delete old pages: `src/app/scan-appointment/`, `src/app/scan/` (if exist and deprecated)
+6. Adjust `src/middleware.ts`: clean deprecated public paths, ensure `/public`, `/api/settings/public` correctly pass
+7. Final integration test: verify full flow
 
-**源文件**：
+**Source files**:
 - `src/lib/email.ts` (DELETE)
 - `src/lib/scheduler.ts` (DELETE)
 - `src/app/api/admin/email-config/route.ts` (DELETE)
@@ -508,134 +510,134 @@ sequenceDiagram
 - `src/app/api/visit-cards/latest/route.ts` (DELETE)
 - `src/app/scan-appointment/page.tsx` (DELETE)
 - `src/app/scan/page.tsx` (DELETE)
-- `src/lib/schema.ts` (MODIFY - 删除 visitCards 表定义)
-- `src/storage/database/shared/schema.ts` (MODIFY - 删除通知相关表)
-- `src/middleware.ts` (MODIFY - 清理 + 确认)
+- `src/lib/schema.ts` (MODIFY - remove visitCards table definition)
+- `src/storage/database/shared/schema.ts` (MODIFY - remove notification tables)
+- `src/middleware.ts` (MODIFY - clean + confirm)
 
-**依赖**: T01, T02, T03, T04  
-**优先级**: P1
-
----
-
-## 7. 依赖包列表
-
-### 7.1 移除的依赖
-
-```
-- nodemailer: 邮件发送（不需要）
-- @types/nodemailer: nodemailer 类型定义
-- @aws-sdk/client-s3: S3 客户端（邮件附件存储）
-- @aws-sdk/lib-storage: S3 上传工具
-```
-
-### 7.2 保留的依赖（无新增）
-
-本系统不需要引入任何新的 npm 包。所有功能使用已有依赖实现：
-- `qrcode` — 已有，二维码生成
-- `react-hook-form` + `zod` — 已有，表单验证
-- `drizzle-orm` + `drizzle-kit` — 已有，ORM
-- `shadcn/ui` (radix-ui 系列) — 已有，UI 组件
-- `date-fns` — 已有，日期处理
+**Deps**: T01, T02, T03, T04  
+**Priority**: P1
 
 ---
 
-## 8. 共享知识
+## 7. Dependency List
 
-### 8.1 状态枚举（沿用现有枚举，不变）
+### 7.1 Removed Dependencies
+
+```
+- nodemailer: email sending (not needed)
+- @types/nodemailer: nodemailer type defs
+- @aws-sdk/client-s3: S3 client (email attachment storage)
+- @aws-sdk/lib-storage: S3 upload tool
+```
+
+### 7.2 Retained Dependencies (none added)
+
+This system introduces no new npm packages. All features use existing deps:
+- `qrcode` — existing, QR generation
+- `react-hook-form` + `zod` — existing, form validation
+- `drizzle-orm` + `drizzle-kit` — existing, ORM
+- `shadcn/ui` (radix-ui family) — existing, UI components
+- `date-fns` — existing, date handling
+
+---
+
+## 8. Shared Knowledge
+
+### 8.1 Status Enum (reuse existing, unchanged)
 
 ```typescript
-// 预约状态
+// Appointment status
 type AppointmentStatus = 'pending' | 'scheduled' | 'checked_in' | 'checked_out' | 'rejected' | 'cancelled';
 
-// 创建来源
-type CreatedBy = 'employee' | 'visitor';  // employee=员工创建(自动通过), visitor=访客扫码创建
+// Creation source
+type CreatedBy = 'employee' | 'visitor';  // employee=created by employee (auto-approve), visitor=created by visitor scan
 
-// 访客类型
+// Visitor type
 type VisitorType = 'customer' | 'supplier' | 'applicant' | 'delivery' | 'government' | 'visit';
 
-// 通行牌颜色
+// Badge color
 type PassColor = 'green' | 'yellow' | 'red';
 ```
 
-### 8.2 系统设置键名
+### 8.2 System Setting Keys
 
 ```typescript
 const SYSTEM_SETTING_KEYS = {
-  REVIEW_ENABLED: 'review_enabled',  // 新增：审核开关
-  AUTO_APPROVE: 'auto_approve',      // 遗留：一键审批（废弃但保留）
+  REVIEW_ENABLED: 'review_enabled',  // new: review toggle
+  AUTO_APPROVE: 'auto_approve',      // legacy: one-click approval (deprecated but kept)
 } as const;
 ```
 
-### 8.3 API 路径约定
+### 8.3 API Path Conventions
 
 ```
-/api/settings/public          → 公开设置 API（无需登录），返回 { reviewEnabled }
-/api/scan-appointment         → 访客扫码预约（无需登录）
-/api/appointments/pending     → 待审核列表（需登录），自动按 visitObject 过滤
-/api/appointments/approve     → 审批通过（需登录）
-/api/appointments/reject      → 审批拒绝（需登录）
-/api/host-contacts?query=     → 受访人搜索（无需登录的 GET 请求）
-/api/admin/settings           → 管理员设置（需 admin 角色）
+/api/settings/public          → Public settings API (no auth), returns { reviewEnabled }
+/api/scan-appointment         → Visitor scan appointment (no auth)
+/api/appointments/pending     → Pending list (auth), auto-filtered by visitObject
+/api/appointments/approve     → Approve (auth)
+/api/appointments/reject      → Reject (auth)
+/api/host-contacts?query=     → Host search (no-auth GET)
+/api/admin/settings           → Admin settings (admin role)
 ```
 
-### 8.4 前端路由约定
+### 8.4 Frontend Route Conventions
 
 ```
-/public/appointment    → 公开预约页（访客扫码进入，无需登录）
-/my-appointments       → 我的预约（员工：含待审核 tab）
-/login                 → 登录页
-/admin/qrcode          → 二维码管理（生成 /public/appointment 的二维码）
-/admin/settings        → 系统设置（审核开关在此）
+/public/appointment    → Public appointment page (visitor scan entry, no auth)
+/my-appointments       → My Appointments (employee: with Pending Review tab)
+/login                 → Login page
+/admin/qrcode          → QR code management (generates /public/appointment QR)
+/admin/settings        → System settings (review toggle here)
 ```
 
-### 8.5 数据脱敏规则（沿用现有规则）
+### 8.5 Data Masking Rules (reuse existing)
 
-- 姓名：保留首字，其余 `*` 替换（如 "张三" → "张*"）
-- 手机号：前 3 + `****` + 后 4（如 "13800138000" → "138****8000"）
-- 身份证：前 4 + `****` + 后 4
-- **长约车/人**：不脱敏（门卫需核对真实信息）
+- Name: keep first char, replace rest with `*` (e.g. "张三" → "张*")
+- Phone: first 3 + `****` + last 4 (e.g. "13800138000" → "138****8000")
+- ID: first 4 + `****` + last 4
+- **Long-term vehicles/personnel**: not masked (guards need real info)
 
-### 8.6 Token 认证
+### 8.6 Token Auth
 
-- Cookie: `auth-token`，格式 `Base64(payload).HMAC-SHA256(payload)`
-- 有效期：24 小时
+- Cookie: `auth-token`, format `Base64(payload).HMAC-SHA256(payload)`
+- Validity: 24 hours
 - httpOnly + sameSite strict
-- 公开 API（`/api/scan-appointment`, `/api/settings/public`）无需 token
+- Public APIs (`/api/scan-appointment`, `/api/settings/public`) need no token
 
-### 8.7 日期存储约定
+### 8.7 Date Storage Convention
 
-- 数据库存储：UTC（`d-1 16:00` 技巧确保东八区日期正确）
-- 查询显示：`AT TIME ZONE 'Asia/Shanghai'`
-- 前端输入/显示：`YYYY-MM-DD` 字符串
+- DB storage: UTC (the `d-1 16:00` trick ensures correct China-time dates)
+- Query display: `AT TIME ZONE 'Asia/Shanghai'`
+- Frontend input/display: `YYYY-MM-DD` string
 
 ---
 
-## 9. 待明确事项
+## 9. Open Items
 
-### 9.1 PRD 中的待确认问题
+### 9.1 Open Questions from PRD
 
-| 问题编号 | 问题 | 设计建议 |
+| ID | Question | Design suggestion |
 |----------|------|---------|
-| **Q-01** | "审核开关"是否需要区分访客类型（如部分类型自动通过、部分类型需审核）？ | ✅ **已确认：暂不区分。** 单一全局开关 |
-| **Q-02** | 被访人匹配：如果访客填写的受访人不在 `host_contacts` 中，是拒绝提交还是仅提示确认？ | ✅ **已确认：拒绝提交。** 受访人不在清单中时，阻止提交，提示访客联系管理员添加受访人信息 |
-| **Q-03** | 被访人审核时，是否允许被访人修改预约信息（如修改来访时间）？ | ✅ **已确认：仅允许通过/拒绝，不允许修改** |
-| **Q-04** | "审核开关"关闭时，已经 pending 的旧预约是否需要批量转为 scheduled？ | ✅ **已确认：不自动转换，只影响新提交** |
-| **Q-05** | 门卫签到搜索时，是否需要排除 `rejected` 状态的预约？ | ✅ **已确认：排除 rejected** |
-| **Q-06** | 拒绝原因是否有字数限制？是否需要预设模板？ | ✅ **已确认：拒绝时不需要填写原因。** 直接拒绝，无需填写原因字段 |
-| **Q-07** | 公开预约页是否需要在提交前添加验证码（防止机器人）？ | ✅ **已确认：暂不添加** |
+| **Q-01** | Does the "review toggle" need to distinguish visitor types (e.g. some auto-approve, some require review)? | ✅ **Confirmed: no distinction for now.** Single global toggle |
+| **Q-02** | Host matching: if the host the visitor enters is not in `host_contacts`, reject submission or just prompt to confirm? | ✅ **Confirmed: reject submission.** When host not in list, block submit and prompt visitor to contact admin to add the host |
+| **Q-03** | During host review, can the host modify appointment info (e.g. visit time)? | ✅ **Confirmed: approve/reject only, no modification** |
+| **Q-04** | When the review toggle is off, should existing pending old appointments be bulk-converted to scheduled? | ✅ **Confirmed: no auto-conversion, affects new submissions only** |
+| **Q-05** | Should guard check-in search exclude `rejected` appointments? | ✅ **Confirmed: exclude rejected** |
+| **Q-06** | Any length limit or preset templates for reject reason? | ✅ **Confirmed: no reason required on reject.** Reject directly, no reason field needed |
+| **Q-07** | Add CAPTCHA before submit on the public appointment page (anti-bot)? | ✅ **Confirmed: not added for now** |
 
-### 9.2 额外发现的待确认点
+### 9.2 Additional Findings / Open Points
 
-| 编号 | 发现 | 建议 |
+| ID | Finding | Suggestion |
 |------|------|------|
-| **A-01** | 现有代码中 `src/lib/schema.ts` 和 `src/storage/database/shared/schema.ts` 存在大量重复表定义（visitors, appointments, blacklist, vehicles, visitRecords） | **建议：清理重复。** 以 `storage/database/shared/schema.ts` 为权威来源，`lib/schema.ts` 中只保留独有的表（hostContacts, receipts, safetyEquipment, visitCards）。这是代码债务，但不影响功能，可在 T05 中处理 |
-| **A-02** | 通知相关表（notificationTasks 等）删除后，数据库中已有数据如何处理？ | **建议：保留数据库表不做 DROP。** 只移除代码引用。Drizzle schema 中删除表定义后不会影响已有数据库表，只是 ORM 不再访问它们 |
-| **A-03** | 旧的 `src/app/scan-appointment/` 和 `src/app/scan/` 是否需要删除？ | **建议：在 T05 中删除。** 确认这两个页面无人引用后安全删除 |
-| **A-04** | 现有 `auto_approve` 系统设置和 `review_enabled` 语义相反（auto_approve=true ≈ review_enabled=false） | **建议：`review_enabled` 默认值为 `true`（开启审核），更安全。** 部署方安装后默认需审核，降低安全风险 |
+| **A-01** | Existing code has heavy duplicate table definitions in `src/lib/schema.ts` and `src/storage/database/shared/schema.ts` (visitors, appointments, blacklist, vehicles, visitRecords) | **Suggest: clean duplicates.** Treat `storage/database/shared/schema.ts` as source of truth; `lib/schema.ts` keeps only its unique tables (hostContacts, receipts, safetyEquipment, visitCards). Code debt, doesn't affect function, can be handled in T05 |
+| **A-02** | After deleting notification tables (notificationTasks etc.), how to handle existing data in the DB? | **Suggest: keep the DB tables, no DROP.** Only remove code references. Removing the table definition from Drizzle schema won't affect existing DB tables; the ORM just stops accessing them |
+| **A-03** | Should old `src/app/scan-appointment/` and `src/app/scan/` be deleted? | **Suggest: delete in T05.** Safe to delete after confirming no references |
+| **A-04** | Existing `auto_approve` system setting has opposite semantics to `review_enabled` (auto_approve=true ≈ review_enabled=false) | **Suggest: `review_enabled` default `true` (review on), safer.** After install, review is required by default, lowering security risk |
 
 ---
 
-## 10. 任务依赖关系图
+## 10. Task Dependency Graph
 
 ```mermaid
 graph TD
@@ -652,5 +654,5 @@ graph TD
 
 ---
 
-> **文档版本**: v1.0.0  
-> **审核状态**: **已确认** — 所有 Q 项决策已锁定，Q2=拒绝提交，Q6=不用原因，其余按建议执行
+> **Doc version**: v1.0.0  
+> **Review status**: **Confirmed** — all Q decisions locked, Q2=reject submission, Q6=no reason, others per suggestion
