@@ -91,8 +91,8 @@ flowchart TD
 ### 方式一：Docker 一键部署（推荐）
 
 ```bash
-cp .env.example .env.local
-# 编辑 .env.local，设置 DATABASE_URL 与 TOKEN_SECRET（TOKEN_SECRET 务必改为长随机串）
+cp .env.example .env
+# 编辑 .env（注意：Docker Compose 只读取 .env，不读 .env.local），设置 DATABASE_URL 与 TOKEN_SECRET（TOKEN_SECRET 务必改为长随机串）
 docker compose up -d
 # 访问 http://localhost:4000
 ```
@@ -104,6 +104,21 @@ pnpm install
 cp .env.example .env.local   # 填写数据库连接与 TOKEN_SECRET
 pnpm dev                     # http://localhost:3001
 ```
+
+> ### ⚠️ 环境变量文件：`.env` 与 `.env.local` 的区别（很重要，搞错会跑不起来）
+>
+> 本项目两套运行方式读取的环境变量文件**不同**，必须对应正确，否则会出现「连不上数据库 / 缺少 TOKEN_SECRET 直接 FATAL」等问题：
+>
+> | 运行方式 | 实际读取的文件 | 正确做法 |
+> |----------|---------------|----------|
+> | **Docker 部署**（`docker compose up`） | 仅仓库根目录的 **`.env`**（Compose 的 `${VAR}` 变量插值**只认 `.env`，不读 `.env.local`**） | `cp .env.example .env` 后编辑 `.env` |
+> | **本地开发**（`pnpm dev` / `next dev`） | **`.env.local`**（Next.js 自动加载；`.env` 也会被读，但 `.env.local` 优先级更高） | `cp .env.example .env.local` 后编辑 `.env.local` |
+>
+> **最常见的坑**：照旧文档把变量复制到 `.env.local` 再执行 `docker compose up`，Compose 读不到 `.env.local`，`DATABASE_URL` / `TOKEN_SECRET` 缺失或为空 → 应用起不来或连不上库。
+>
+> **一句话记忆**：**Docker 用 `.env`，本地 dev 才用 `.env.local`**。两个文件互不冲突，也可同时存在（本地 dev 时 Next.js 优先用 `.env.local`）。
+>
+> 所有可配置项见 `.env.example`；密钥文件已被 `.gitignore` 忽略，不会进入仓库。
 
 ### 运行测试
 
@@ -128,7 +143,7 @@ pnpm build                   # 即 next build --webpack（必须用 webpack，Tu
 | `employee` | `employee123` | 员工代表 |
 | `visitor` | `visitor123` | 访客代表 |
 
-> ⚠️ 登录后请**立即修改默认密码**。生产环境务必在 `.env.local` 中设置强随机 `TOKEN_SECRET`（命令：`openssl rand -hex 32`），否则应用启动会直接 FATAL。
+> ⚠️ 登录后请**立即修改默认密码**。生产环境务必在你实际使用的环境变量文件（Docker 用 `.env`，本地 dev 用 `.env.local`）中设置强随机 `TOKEN_SECRET`（命令：`openssl rand -hex 32`），否则应用启动会直接 FATAL。
 
 ---
 

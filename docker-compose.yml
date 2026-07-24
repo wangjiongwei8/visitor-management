@@ -1,8 +1,8 @@
 # ============================================
 # 访客管理系统 — 开源一键部署
 # 使用方式:
-#   1. cp .env.example .env.local
-#   2. 编辑 .env.local，设置 DATABASE_URL 与 TOKEN_SECRET
+#   1. cp .env.example .env
+#   2. 编辑 .env（Docker Compose 只读取 .env，不读 .env.local），设置 DATABASE_URL 与 TOKEN_SECRET
 #   3. docker compose up -d
 #   4. 访问 http://localhost:4000 完成初始化
 # ============================================
@@ -38,7 +38,7 @@ services:
     container_name: visitor_app
     restart: always
     environment:
-      # ⚠️ 生产环境务必通过 .env.local 覆盖 TOKEN_SECRET，切勿使用空默认值
+      # ⚠️ 生产环境务必在 .env 中覆盖 TOKEN_SECRET，切勿使用空默认值（Docker Compose 读取 .env）
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-password}@db:5432/visitor_management
       TOKEN_SECRET: ${TOKEN_SECRET}
       NODE_ENV: production
